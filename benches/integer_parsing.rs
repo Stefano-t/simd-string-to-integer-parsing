@@ -8,8 +8,8 @@ use test::{black_box, Bencher};
 
 
 // max integer with 32 bit is 4294967295
-const TEST_STR: &str = "694206942";
-const TEST_RES: u32 = 694206942;
+const TEST_STR: &str = "1694206942";
+const TEST_RES: u32 = 1694206942;
 
 #[bench]
 fn bench_std_parse(b: &mut Bencher) {
@@ -62,6 +62,23 @@ fn bench_check_chars_validity(b: &mut Bencher) {
 }
 
 #[bench]
+fn bench_first_byte_non_numeric(b: &mut Bencher) {
+    let s = "11211,012301,010";
+    let padded = format!("{:0>16}", s);
+    b.bytes = padded.len() as u64;
+    assert_eq!(first_byte_non_numeric(&padded), 6);
+    b.iter(|| first_byte_non_numeric(black_box(&padded)))
+}
+
+#[bench]
+fn bench_naive_find_char(b: &mut Bencher) {
+    let s = "1211012301,32101";
+    let padded = format!("{:0>16}", s);
+    b.bytes = padded.len() as u64;
+    b.iter(|| naive_find_char(black_box(&padded)))
+}
+
+#[bench]
 fn bench_trick(b: &mut Bencher) {
     // we need padding because the `trick` algorithm only works with 16 chars string.
     // Since the largest number we can represent with 32 bit has 10 digits, we need
@@ -78,7 +95,7 @@ fn bench_trick(b: &mut Bencher) {
 #[bench]
 fn bench_trick_simd(b: &mut Bencher) {
     let padded_str = format!("{:0>16}", TEST_STR);
-    assert_eq!(trick_simd(&padded_str), TEST_RES as u64);
+    assert_eq!(trick_simd(&padded_str), TEST_RES);
 
     b.bytes = TEST_STR.len() as u64;
 
