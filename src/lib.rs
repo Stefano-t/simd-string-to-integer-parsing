@@ -1,9 +1,17 @@
 #![feature(stdsimd)]
 
 use std::arch::x86_64::{
+    __m128i,
+
+    // Set register to all zeros.
+    // _mm_setzero_si128,
+
     // Compute the binary and between two registers
     // Reference: https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_and&expand=1046,6130,6130,4335,4335,1046,1180,349
     _mm_and_si128,
+
+    // negate the first argument, and then compute an AND with second argument
+    _mm_andnot_si128,
 
     // Shift left by byte
     _mm_bsrli_si128,
@@ -73,6 +81,9 @@ use std::arch::x86_64::{
 
     // Set packed 8-bit integers in dst with the supplied values.
     _mm_set_epi8,
+
+    // Logic shidft to the left by bytes
+    _mm_slli_si128,
 
     // Subtract packed 16-bit integers in b from packed 16-bit integers in a,
     // and store the results in dst.
@@ -145,6 +156,10 @@ pub fn first_byte_non_numeric(string: &str) -> u32 {
 
         // if the first 8 bytes are all set to zero, check the upper part
         if lower == 0 {
+            // if also upper is 0, then no separator is present
+            if upper == 0 {
+                return 0;
+            }
             // divide by 8 because we want to count in byte, and add 9 because
             // lower is all zeros, so 8 byte are skipped, plus 1 because the comma
             // or newline is not included in the trailing count.
@@ -156,6 +171,34 @@ pub fn first_byte_non_numeric(string: &str) -> u32 {
     }
 }
 
+pub fn create_parsing_mask(s: &str) -> __m128i {
+    unsafe {
+        // create costant registers
+        let commas = _mm_set1_epi8(b',' as i8);
+        let newlines = _mm_set1_epi8(b'\n' as i8);
+
+        // load data into memory
+        let value = _mm_loadu_si128(s.as_ptr() as _);
+
+        // compare for equality and find the occurences of commas and newlines
+        let comma_mask = _mm_cmpeq_epi8(value, commas);
+        let newline_mask = _mm_cmpeq_epi8(value, newlines);
+
+        // create the OR of the two regiters to place the first index correctly
+        let or_comma_newline = _mm_or_si128(comma_mask, newline_mask);
+
+        propagate(or_comma_newline)
+    }
+}
+
+#[inline]
+unsafe fn propagate(mut v: __m128i) -> __m128i {
+    v = _mm_or_si128(v, _mm_slli_si128(v as _, 1) as _);
+    v = _mm_or_si128(v, _mm_slli_si128(v as _, 2) as _);
+    v = _mm_or_si128(v, _mm_slli_si128(v as _, 4) as _);
+    v = _mm_or_si128(v, _mm_slli_si128(v as _, 8) as _);
+    v
+}
 
 /// Finds the first occurences of comma or newline.
 ///
@@ -163,10 +206,10 @@ pub fn first_byte_non_numeric(string: &str) -> u32 {
 pub fn naive_find_char(string: &str) -> u32 {
     for (pos, c) in string.bytes().enumerate() {
         if c == b',' || c == b'\n' {
-            return pos as u32
+            return pos as u32;
         }
     }
-    return u32::MAX
+    return u32::MAX;
 }
 
 /// Parses integer from string iterating through each char.
@@ -249,28 +292,46 @@ pub fn trick(s: &str) -> u64 {
     parse_8_chars(upper_digits) * 100000000 + parse_8_chars(lower_digits)
 }
 
+/// Parses an integer from the string with SIMD.
+///
+/// This method *assumes* that the input string has exactly 16 chars, eventually
+/// padded with zeros.
 pub fn trick_simd(s: &str) -> u32 {
+    let to_parse: [u8; 16] = [48; 16];
+    let ptr_to_parse = to_parse.as_ptr() as *mut u8;
     unsafe {
-        let chunk = _mm_lddqu_si128(std::mem::transmute_copy(&s));
+        let index = first_byte_non_numeric(s) - 1;
+        std::ptr::copy_nonoverlapping(
+            s.as_ptr() as *const _,
+            ptr_to_parse.add((16 - index) as usize),
+            index as usize,
+        );
+        let mut chunk = _mm_lddqu_si128(ptr_to_parse as *const _);
+        //let mut chunk = _mm_lddqu_si128(std::mem::transmute_copy(&s));
         let zeros = _mm_set1_epi8(b'0' as i8);
-        let chunk = _mm_sub_epi16(chunk, zeros);
+        chunk = _mm_sub_epi16(chunk, zeros);
+
+        // if !check_all_chars_are_valid(s) {
+        //     let mask = create_parsing_mask(s);
+        //     chunk = _mm_and_si128(mask, chunk);
+        // }
 
         // last 6 digits must be set to 0 becuase the max u32 integer has 10
         // digits, and we are processing a string with 16 chars. So we need to
         // remove the first 6 digits. Since the number is loaded in little
         // endian form, the first 6 digits become the last 6 digits.
-        let mult = _mm_set_epi8(1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 0, 0, 0, 0, 0, 0);
-        let chunk = _mm_maddubs_epi16(chunk, mult);
+        let mult = _mm_set_epi8(1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10);
+        chunk = _mm_maddubs_epi16(chunk, mult);
 
-        // repmove the first 3 digits of the number
-        let mult = _mm_set_epi16(1, 100, 1, 100, 1, 0, 0, 0);
-        let chunk = _mm_madd_epi16(chunk, mult);
+        // remove the first 3 digits of the number
+        let mult = _mm_set_epi16(1, 100, 1, 100, 1, 100, 1, 100);
+        chunk = _mm_madd_epi16(chunk, mult);
 
-        let chunk = _mm_packus_epi32(chunk, chunk);
+        chunk = _mm_packus_epi32(chunk, chunk);
         // trim off the first digit and invalidate the first 4 couples of 2
         // bytes, since we are working with chucks of 4 bytes.
-        let mult = _mm_set_epi16(0, 0, 0, 0, 1, 10000, 1, 0);
-        let chunk = _mm_madd_epi16(chunk, mult);
+        let mult = _mm_set_epi16(0, 0, 0, 0, 1, 10000, 1, 10000);
+        chunk = _mm_madd_epi16(chunk, mult);
 
         let chunk = _mm_cvtsi128_si64(chunk) as u64;
         (((chunk & 0x00000000ffffffff) * 100000000) + (chunk >> 32)) as u32
