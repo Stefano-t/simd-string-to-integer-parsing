@@ -1,8 +1,10 @@
 #![feature(stdsimd)]
 
+// TODO do not replicate masks
+// TODO create more stable benchmarks
+
 use std::arch::x86_64::{
     __m128i,
-
     // Set register to all zeros.
     // _mm_setzero_si128,
 
@@ -35,6 +37,7 @@ use std::arch::x86_64::{
     // Reference: https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_cmplt_epi8&expand=1046,6130,6130,4335,4335,1046,1180
     _mm_cmplt_epi8,
 
+    _mm_cvtsi128_si32,
     // Copy the lower 64-bit integer.
     _mm_cvtsi128_si64,
 
@@ -93,6 +96,9 @@ use std::arch::x86_64::{
     // Reference: https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=zero&expand=1046,6130,6130,4335,4335,1046,1180,349,4836,7128&techs=SSE,SSE2,SSE3,SSSE3,SSE4_1,SSE4_2
     _mm_test_all_ones,
 };
+
+// minimum size required by an input string to use SIMD algorithms
+const VECTOR_SIZE: usize = std::mem::size_of::<__m128i>();
 
 #[inline]
 /// Checks that all the bytes are valid digits
@@ -171,6 +177,9 @@ pub fn first_byte_non_numeric(string: &str) -> u32 {
     }
 }
 
+/// Creates a mask to remove all the elements after the separator.
+///
+/// By default, this method matches only ',' and '\n'
 pub fn create_parsing_mask(s: &str) -> __m128i {
     unsafe {
         // create costant registers
@@ -192,6 +201,7 @@ pub fn create_parsing_mask(s: &str) -> __m128i {
 }
 
 #[inline]
+/// Propagates the input mask to the left.
 unsafe fn propagate(mut v: __m128i) -> __m128i {
     v = _mm_or_si128(v, _mm_slli_si128(v as _, 1) as _);
     v = _mm_or_si128(v, _mm_slli_si128(v as _, 2) as _);
@@ -200,127 +210,33 @@ unsafe fn propagate(mut v: __m128i) -> __m128i {
     v
 }
 
-/// Finds the first occurences of comma or newline.
+/// Parses an integer from the input string until a delimiter is encountered.
 ///
-/// In case of error, it returns the u32::MAX
-pub fn naive_find_char(string: &str) -> u32 {
-    for (pos, c) in string.bytes().enumerate() {
-        if c == b',' || c == b'\n' {
-            return pos as u32;
-        }
-    }
-    return u32::MAX;
+/// By default, it uses ',' and '\n' as delimiter. To parse the digits, it
+/// exploits the fact that in ASCII encoding, digits are stored in the 4 least
+/// significant bits of the ASCII code. As example, consider '1': in binary is
+/// 0011-0001, and masking with 0x0f we get 0000-0001, which is 1.
+pub fn parse_integer_byte_iterator(s: &str) -> u32 {
+    s.bytes()
+        .take_while(|&byte| (byte != b',') && (byte != b'\n'))
+        .fold(0, |a, c| a * 10 + (c & 0x0f) as u32)
 }
 
-/// Parses integer from string iterating through each char.
-///
-/// This function doesn't perform any kind of input validation: it assumes that the string
-/// is composed by numeric values.
-pub fn naive_parsing(s: &str) -> u32 {
-    let mut result = 0;
-    for digit in s.chars() {
-        result *= 10;
-        result += digit as u32 - '0' as u32;
-    }
-    result
-}
-
-/// Parses integer from string using folding function.
-///
-/// This function doesn't perform any cheking, neither in the chars in the string if they are
-/// all numberic, nor on the lenght of the string.
-pub fn naive_parsing_limit(s: &str) -> u32 {
-    s.chars()
-        .take(10)
-        .fold(0, |a, c| a * 10 + c as u32 - '0' as u32)
-}
-
-pub fn naive_bytes(s: &str) -> u32 {
-    let mut result = 0;
-    for digit in s.bytes() {
-        result *= 10;
-        result += (digit - b'0') as u32;
-    }
-    result
-}
-
-pub fn naive_bytes_iter(s: &str) -> u32 {
-    s.bytes().fold(0, |a, c| a * 10 + (c - b'0') as u32)
-}
-
-pub fn naive_bytes_and(s: &str) -> u32 {
-    s.bytes().fold(0, |a, c| a * 10 + (c & 0x0f) as u32)
-}
-
-fn parse_8_chars(s: &str) -> u64 {
-    // cast to a raw pointer
-    let s = s.as_ptr() as *const _;
-    let mut chunk = 0;
+pub fn parse_7_chars(s: &str) -> u32 {
     unsafe {
-        // copy the content of s into chuck
-        std::ptr::copy_nonoverlapping(s, &mut chunk, std::mem::size_of_val(&chunk));
-    }
-
-    // the hex numbers must be read from right to left.
-    // Masking with 0x0f will extract from the ASCII char only the required number,
-    // because it is stored in 4 right most digits.
-    // Example: '1' -> ascii 49 -> 00110001 -> 0011 0001 & 0x0f = 0001 = 1
-    // Example: '9' -> ascii 57 -> 00111001 -> 0011 1001 & 0x0f = 1001 = 9
-
-    // 1-byte mask trick (works on 4 pairs of single digits)
-    let lower_digits = (chunk & 0x0f000f000f000f00) >> 8;
-    let upper_digits = (chunk & 0x000f000f000f000f) * 10;
-    let chunk = lower_digits + upper_digits;
-
-    // 2-byte mask trick (works on 2 pairs of two digits)
-    let lower_digits = (chunk & 0x00ff000000ff0000) >> 16;
-    let upper_digits = (chunk & 0x000000ff000000ff) * 100;
-    let chunk = lower_digits + upper_digits;
-
-    // 4-byte mask trick (works on a pair of four digits)
-    let lower_digits = (chunk & 0x0000ffff00000000) >> 32;
-    let upper_digits = (chunk & 0x000000000000ffff) * 10000;
-    let chunk = lower_digits + upper_digits;
-
-    chunk
-}
-
-pub fn trick(s: &str) -> u64 {
-    let (upper_digits, lower_digits) = s.split_at(8);
-    // parse 16 digits from the string, the upper 8 digits and then the 8
-    // lower digits
-    parse_8_chars(upper_digits) * 100000000 + parse_8_chars(lower_digits)
-}
-
-/// Parses an integer from the string with SIMD.
-///
-/// This method *assumes* that the input string has exactly 16 chars, eventually
-/// padded with zeros.
-pub fn trick_simd(s: &str) -> u32 {
-    let to_parse: [u8; 16] = [48; 16];
-    let ptr_to_parse = to_parse.as_ptr() as *mut u8;
-    unsafe {
-        let index = first_byte_non_numeric(s) - 1;
-        std::ptr::copy_nonoverlapping(
-            s.as_ptr() as *const _,
-            ptr_to_parse.add((16 - index) as usize),
-            index as usize,
+        let mut chunk = _mm_lddqu_si128(s.as_ptr() as *const _);
+        let zeros = _mm_set_epi8(
+            0, 0, 0, 0, 0, 0, 0, 0, 0, b'0' as i8, b'0' as i8, b'0' as i8, b'0' as i8, b'0' as i8,
+            b'0' as i8, b'0' as i8,
         );
-        let mut chunk = _mm_lddqu_si128(ptr_to_parse as *const _);
-        //let mut chunk = _mm_lddqu_si128(std::mem::transmute_copy(&s));
-        let zeros = _mm_set1_epi8(b'0' as i8);
+        //let zeros = _mm_set1_epi8(b'0' as i8);
         chunk = _mm_sub_epi16(chunk, zeros);
-
-        // if !check_all_chars_are_valid(s) {
-        //     let mask = create_parsing_mask(s);
-        //     chunk = _mm_and_si128(mask, chunk);
-        // }
-
+        //chunk = _mm_mul_epi32(chunk, _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1));
         // last 6 digits must be set to 0 becuase the max u32 integer has 10
         // digits, and we are processing a string with 16 chars. So we need to
         // remove the first 6 digits. Since the number is loaded in little
         // endian form, the first 6 digits become the last 6 digits.
-        let mult = _mm_set_epi8(1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10);
+        let mult = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 1, 10, 1, 10, 1, 10);
         chunk = _mm_maddubs_epi16(chunk, mult);
 
         // remove the first 3 digits of the number
@@ -330,10 +246,185 @@ pub fn trick_simd(s: &str) -> u32 {
         chunk = _mm_packus_epi32(chunk, chunk);
         // trim off the first digit and invalidate the first 4 couples of 2
         // bytes, since we are working with chucks of 4 bytes.
+        let mult = _mm_set_epi16(1, 10000, 1, 10000, 1, 10000, 1, 10000);
+        chunk = _mm_madd_epi16(chunk, mult);
+
+        _mm_cvtsi128_si32(chunk) as u32 / 10
+    }
+}
+
+/// Parses 8 integers from input string using SIMD instructons.
+///
+/// The input string *must have* at least 16 chars, otherwise the internal
+/// operations will load memory outside the string bound.
+pub fn parse_8_chars_simd(s: &str) -> u32 {
+    unsafe {
+        let mut chunk = _mm_lddqu_si128(s.as_ptr() as *const _);
+        // do not touch last 8 chars, since we don't know what they contain, avoiding
+        // any kind of underflow
+        let zeros = _mm_set_epi8(
+            0, 0, 0, 0, 0, 0, 0, 0, b'0' as i8, b'0' as i8, b'0' as i8,
+            b'0' as i8, b'0' as i8, b'0' as i8, b'0' as i8, b'0' as i8,
+        );
+        chunk = _mm_sub_epi16(chunk, zeros);
+
+        let mult = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 1, 10, 1, 10, 1, 10, 1, 10);
+        chunk = _mm_maddubs_epi16(chunk, mult);
+
+        let mult = _mm_set_epi16(1, 100, 1, 100, 1, 100, 1, 100);
+        chunk = _mm_madd_epi16(chunk, mult);
+
+        chunk = _mm_packus_epi32(chunk, chunk);
+        let mult = _mm_set_epi16(1, 10000, 1, 10000, 1, 10000, 1, 10000);
+        chunk = _mm_madd_epi16(chunk, mult);
+
+        let chunk = _mm_cvtsi128_si32(chunk) as u32;
+        chunk
+    }
+}
+
+pub fn parse_5_chars(s: &str) -> u32 {
+    unsafe {
+        let mut chunk = _mm_lddqu_si128(s.as_ptr() as *const _);
+        let zeros = _mm_set_epi8(
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, b'0' as i8, b'0' as i8, b'0' as i8, b'0' as i8,
+            b'0' as i8,
+        );
+        chunk = _mm_sub_epi16(chunk, zeros);
+        let mult = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 1, 10, 1, 10);
+        chunk = _mm_maddubs_epi16(chunk, mult);
+
+        let mult = _mm_set_epi16(1, 100, 1, 100, 1, 100, 1, 100);
+        chunk = _mm_madd_epi16(chunk, mult);
+
+        chunk = _mm_packus_epi32(chunk, chunk);
+        let mult = _mm_set_epi16(1, 10000, 1, 10000, 1, 10000, 1, 10000);
+        chunk = _mm_madd_epi16(chunk, mult);
+
+        _mm_cvtsi128_si32(chunk) as u32 / 1000
+    }
+}
+pub fn parse_6_chars(s: &str) -> u32 {
+    unsafe {
+        let mut chunk = _mm_lddqu_si128(s.as_ptr() as *const _);
+        let zeros = _mm_set_epi8(
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, b'0' as i8, b'0' as i8, b'0' as i8, b'0' as i8,
+            b'0' as i8, b'0' as i8,
+        );
+        chunk = _mm_sub_epi16(chunk, zeros);
+        let mult = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 10, 1, 10, 1, 10);
+        chunk = _mm_maddubs_epi16(chunk, mult);
+
+        let mult = _mm_set_epi16(1, 100, 1, 100, 1, 100, 1, 100);
+        chunk = _mm_madd_epi16(chunk, mult);
+
+        chunk = _mm_packus_epi32(chunk, chunk);
+        let mult = _mm_set_epi16(1, 10000, 1, 10000, 1, 10000, 1, 10000);
+        chunk = _mm_madd_epi16(chunk, mult);
+
+        _mm_cvtsi128_si32(chunk) as u32 / 100
+    }
+}
+
+pub fn parse_4_chars(s: &str) -> u32 {
+    unsafe {
+        let mut chunk = _mm_lddqu_si128(s.as_ptr() as *const _);
+        let zeros = _mm_set_epi8(
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, b'0' as i8, b'0' as i8, b'0' as i8, b'0' as i8,
+        );
+        chunk = _mm_sub_epi16(chunk, zeros);
+        let mult = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 10, 1, 10);
+        chunk = _mm_maddubs_epi16(chunk, mult);
+
+        let mult = _mm_set_epi16(1, 100, 1, 100, 1, 100, 1, 100);
+        chunk = _mm_madd_epi16(chunk, mult);
+
+        chunk = _mm_packus_epi32(chunk, chunk);
+        let mult = _mm_set_epi16(1, 10000, 1, 10000, 1, 10000, 1, 10000);
+        chunk = _mm_madd_epi16(chunk, mult);
+
+        _mm_cvtsi128_si32(chunk) as u32 / 10000
+    }
+}
+
+pub fn parse_integer(s: &str) -> u32 {
+    // cannot use SIMD acceleration, at least 16 chars are required
+    if s.len() < VECTOR_SIZE {
+        return parse_integer_byte_iterator(s)
+    }
+    // find the first occurence of a separator
+    let index = first_byte_non_numeric(s) - 1;
+    match index {
+        8 => return parse_8_chars_simd(s),
+        10 => return parse_more_than_8_simd(s, 1000000),
+        9 => return parse_more_than_8_simd(s, 10000000),
+        7 => return parse_less_than_8_simd(s, 10),
+        6 => return parse_less_than_8_simd(s, 100),
+        5 => return parse_less_than_8_simd(s, 1000),
+        4 => return parse_less_than_8_simd(s, 10000),
+        1..=3 => return parse_4_or_less_chars(s, index),
+        // it not an u32 number
+        _ => return 0_u32,
+    }
+}
+
+pub fn parse_less_than_8_simd(s: &str, scaling_factor: u32) -> u32 {
+    unsafe {
+        let mut chunk = _mm_lddqu_si128(s.as_ptr() as *const _);
+        let zeros = _mm_set1_epi8(b'0' as i8);
+        chunk = _mm_sub_epi16(chunk, zeros);
+
+        // create the mask and remove the unwanted part of the number to not parse
+        let mask = create_parsing_mask(s);
+        chunk = _mm_andnot_si128(mask, chunk);
+
+        let mult = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 1, 10, 1, 10, 1, 10, 1, 10);
+        chunk = _mm_maddubs_epi16(chunk, mult);
+
+        let mult = _mm_set_epi16(1, 100, 1, 100, 1, 100, 1, 100);
+        chunk = _mm_madd_epi16(chunk, mult);
+
+        chunk = _mm_packus_epi32(chunk, chunk);
+        let mult = _mm_set_epi16(1, 10000, 1, 10000, 1, 10000, 1, 10000);
+        chunk = _mm_madd_epi16(chunk, mult);
+
+        let chunk = _mm_cvtsi128_si32(chunk) as u32;
+        chunk / scaling_factor
+    }
+}
+
+pub fn parse_4_or_less_chars(s: &str, chars_to_parse: u32) -> u32 {
+    s.bytes()
+        .take(chars_to_parse as usize)
+        .fold(0, |a, c| a * 10 + (c & 0x0f) as u32)
+}
+
+/// Parses an integer from the string with SIMD.
+///
+/// This method *assumes* that the input string has exactly 16 chars, eventually
+/// padded with zeros.
+pub fn parse_more_than_8_simd(s: &str, scaling_factor: u64) -> u32 {
+    unsafe {
+        let mut chunk = _mm_lddqu_si128(std::mem::transmute_copy(&s));
+        let zeros = _mm_set1_epi8(b'0' as i8);
+        chunk = _mm_sub_epi16(chunk, zeros);
+
+        // create the mask and remove the unwanted part of the number to not parse
+        let mask = create_parsing_mask(s);
+        chunk = _mm_andnot_si128(mask, chunk);
+
+        let mult = _mm_set_epi8(1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10);
+        chunk = _mm_maddubs_epi16(chunk, mult);
+
+        let mult = _mm_set_epi16(1, 100, 1, 100, 1, 100, 1, 100);
+        chunk = _mm_madd_epi16(chunk, mult);
+
+        chunk = _mm_packus_epi32(chunk, chunk);
+
         let mult = _mm_set_epi16(0, 0, 0, 0, 1, 10000, 1, 10000);
         chunk = _mm_madd_epi16(chunk, mult);
 
         let chunk = _mm_cvtsi128_si64(chunk) as u64;
-        (((chunk & 0x00000000ffffffff) * 100000000) + (chunk >> 32)) as u32
+        ((((chunk & 0xffffffff) * 100000000) + (chunk >> 32)) / scaling_factor) as u32
     }
 }

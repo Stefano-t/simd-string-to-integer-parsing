@@ -8,48 +8,14 @@ use test::{black_box, Bencher};
 
 
 // max integer with 32 bit is 4294967295
-const TEST_STR: &str = "1694206942";
-const TEST_RES: u32 = 1694206942;
+//const TEST_STR: &str = "1694206942";
+//const TEST_RES: u32 = 1694206942;
 
 #[bench]
 fn bench_std_parse(b: &mut Bencher) {
-    b.bytes = TEST_STR.len() as u64;
-    b.iter(|| black_box(TEST_STR).parse::<u32>().unwrap())
-}
-
-#[bench]
-fn bench_naive_parsing(b: &mut Bencher) {
-    assert_eq!(naive_parsing(TEST_STR), TEST_RES);
-    b.bytes = TEST_STR.len() as u64;
-    b.iter(|| naive_parsing(black_box(TEST_STR)))
-}
-
-#[bench]
-fn bench_naive_parsing_limit(b: &mut Bencher) {
-    assert_eq!(naive_parsing_limit(TEST_STR), TEST_RES);
-    b.bytes = TEST_STR.len() as u64;
-    b.iter(|| naive_parsing_limit(black_box(TEST_STR)))
-}
-
-#[bench]
-fn bench_naive_bytes(b: &mut Bencher) {
-    assert_eq!(naive_bytes(TEST_STR), TEST_RES);
-    b.bytes = TEST_STR.len() as u64;
-    b.iter(|| naive_bytes(black_box(TEST_STR)))
-}
-
-#[bench]
-fn bench_naive_bytes_iter(b: &mut Bencher) {
-    assert_eq!(naive_bytes_iter(TEST_STR), TEST_RES);
-    b.bytes = TEST_STR.len() as u64;
-    b.iter(|| naive_bytes_iter(black_box(TEST_STR)))
-}
-
-#[bench]
-fn bench_naive_bytes_and(b: &mut Bencher) {
-    assert_eq!(naive_bytes_and(TEST_STR), TEST_RES);
-    b.bytes = TEST_STR.len() as u64;
-    b.iter(|| naive_bytes_and(black_box(TEST_STR)))
+    let s = "1211120134";
+    b.bytes = s.len() as u64;
+    b.iter(|| black_box(s).parse::<u32>().unwrap())
 }
 
 #[bench]
@@ -71,14 +37,6 @@ fn bench_first_byte_non_numeric(b: &mut Bencher) {
 }
 
 #[bench]
-fn bench_naive_find_char(b: &mut Bencher) {
-    let s = "1211012301,32101";
-    let padded = format!("{:0>16}", s);
-    b.bytes = padded.len() as u64;
-    b.iter(|| naive_find_char(black_box(&padded)))
-}
-
-#[bench]
 fn bench_create_parsing_mask(b: &mut Bencher) {
     let s = "12345,234";
     let padded = format!("{:0>16}", s);
@@ -87,30 +45,19 @@ fn bench_create_parsing_mask(b: &mut Bencher) {
 }
 
 #[bench]
-fn bench_trick(b: &mut Bencher) {
-    // we need padding because the `trick` algorithm only works with 16 chars string.
-    // Since the largest number we can represent with 32 bit has 10 digits, we need
-    // to use 64 bit numbers in order to use the algotihms, because it works only with
-    // sizes of the power of 2.
-    let padded_str = format!("{:0>16}", TEST_STR);
-    assert_eq!(trick(&padded_str), TEST_RES as u64);
+fn bench_parse_integer(b: &mut Bencher) {
+    let strings = vec!("1234,234", "123456789", "1234567890,01234567");
+    let results = vec!(1234, 123456789, 1234567890);
+    for i in 0..strings.len() {
+        let s = strings[i];
+        let result = results[i];
 
-    b.bytes = padded_str.len() as u64;
+        assert_eq!(parse_integer(&s), result);
 
-    b.iter(|| trick(black_box(&padded_str)))
+        b.bytes = s.len() as u64;
+
+        b.iter(|| parse_integer(black_box(&s)))
+    }
 }
-
-#[bench]
-fn bench_trick_simd(b: &mut Bencher) {
-    let s = "12110123,1234567";
-    let padded_str = format!("{:0>16}", s);
-    assert_eq!(trick_simd(&padded_str), 12110123);
-    // assert_eq!(trick_simd(&padded_str), TEST_RES);
-
-    b.bytes = TEST_STR.len() as u64;
-
-    b.iter(|| trick_simd(black_box(&padded_str)))
-}
-
 // compile command:
 // RUSTFLAGS='-C target-cpu=native' cargo bench
