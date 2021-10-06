@@ -263,8 +263,8 @@ pub fn parse_8_chars_simd(s: &str) -> u32 {
         // do not touch last 8 chars, since we don't know what they contain, avoiding
         // any kind of underflow
         let zeros = _mm_set_epi8(
-            0, 0, 0, 0, 0, 0, 0, 0, b'0' as i8, b'0' as i8, b'0' as i8,
-            b'0' as i8, b'0' as i8, b'0' as i8, b'0' as i8, b'0' as i8,
+            0, 0, 0, 0, 0, 0, 0, 0, b'0' as i8, b'0' as i8, b'0' as i8, b'0' as i8, b'0' as i8,
+            b'0' as i8, b'0' as i8, b'0' as i8,
         );
         chunk = _mm_sub_epi16(chunk, zeros);
 
@@ -350,21 +350,45 @@ pub fn parse_4_chars(s: &str) -> u32 {
 pub fn parse_integer(s: &str) -> u32 {
     // cannot use SIMD acceleration, at least 16 chars are required
     if s.len() < VECTOR_SIZE {
-        return parse_integer_byte_iterator(s)
+        return parse_integer_byte_iterator(s);
     }
     // find the first occurence of a separator
-    let index = first_byte_non_numeric(s) - 1;
+    let index = first_byte_non_numeric(s);
     match index {
-        8 => return parse_8_chars_simd(s),
-        10 => return parse_more_than_8_simd(s, 1000000),
-        9 => return parse_more_than_8_simd(s, 10000000),
-        7 => return parse_less_than_8_simd(s, 10),
-        6 => return parse_less_than_8_simd(s, 100),
-        5 => return parse_less_than_8_simd(s, 1000),
-        4 => return parse_less_than_8_simd(s, 10000),
-        1..=3 => return parse_4_or_less_chars(s, index),
+        9 => return parse_8_chars_simd(s),
+        11 => return parse_more_than_8_simd(s, 1000000),
+        10 => return parse_more_than_8_simd(s, 10000000),
+        8 => return parse_less_than_8_simd(s, 10),
+        7 => return parse_less_than_8_simd(s, 100),
+        6 => return parse_less_than_8_simd(s, 1000),
+        5 => return parse_less_than_8_simd(s, 10000),
+        2..=4 => return parse_4_or_less_chars(s, index - 1),
+        // all the chars is numberic, maybe padded?
+        0 => return parse_integer_simd_all_numbers(s),
         // it not an u32 number
         _ => return 0_u32,
+    }
+}
+
+pub fn parse_integer_simd_all_numbers(s: &str) -> u32 {
+    unsafe {
+        let mut chunk = _mm_lddqu_si128(s.as_ptr() as *const _);
+        let zeros = _mm_set1_epi8(b'0' as i8);
+        chunk = _mm_sub_epi16(chunk, zeros);
+
+        let mult = _mm_set_epi8(1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10);
+        chunk = _mm_maddubs_epi16(chunk, mult);
+
+        let mult = _mm_set_epi16(1, 100, 1, 100, 1, 100, 1, 100);
+        chunk = _mm_madd_epi16(chunk, mult);
+
+        chunk = _mm_packus_epi32(chunk, chunk);
+
+        let mult = _mm_set_epi16(0, 0, 0, 0, 1, 10000, 1, 10000);
+        chunk = _mm_madd_epi16(chunk, mult);
+
+        let chunk = _mm_cvtsi128_si64(chunk) as u64;
+        (((chunk & 0xffffffff) * 100000000) + (chunk >> 32)) as u32
     }
 }
 
