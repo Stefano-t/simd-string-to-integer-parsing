@@ -1,7 +1,6 @@
 #![feature(stdsimd)]
 
 // TODO do not replicate masks
-// TODO create more stable benchmarks
 
 use std::arch::x86_64::{
     __m128i,
@@ -99,6 +98,37 @@ use std::arch::x86_64::{
 
 // minimum size required by an input string to use SIMD algorithms
 const VECTOR_SIZE: usize = std::mem::size_of::<__m128i>();
+
+/// Parses an integer from the given string
+///
+/// If the string has length less than 16 chars, then no SIMD acceleration is
+/// used; in this case, the method resorts to an iterative process to parse the
+/// integer.  If the string has at least 16 chars, then it can perform parsing
+/// exploiting the SIMD intrincs.
+pub fn parse_integer(s: &str) -> u32 {
+    // TODO: handle error in string, i.e. no number to parse
+    // cannot use SIMD acceleration, at least 16 chars are required
+    if s.len() < VECTOR_SIZE {
+        return parse_integer_byte_iterator(s);
+    }
+    // find the first occurence of a separator
+    let index = first_byte_non_numeric(s);
+    match index {
+        9 => return parse_8_chars_simd(s),
+        11 => return parse_more_than_8_simd(s, 1000000),
+        10 => return parse_more_than_8_simd(s, 10000000),
+        8 => return parse_less_than_8_simd(s, 10),
+        7 => return parse_less_than_8_simd(s, 100),
+        6 => return parse_less_than_8_simd(s, 1000),
+        5 => return parse_less_than_8_simd(s, 10000),
+        2..=4 => return parse_4_or_less_chars(s, index - 1),
+        // all the chars is numeric, maybe padded?
+        0 => return parse_integer_simd_all_numbers(s),
+        // TODO: throw an error here
+        // it not an u32 number
+        _ => return 0_u32,
+    }
+}
 
 #[inline]
 /// Checks that all the bytes are valid digits
@@ -222,37 +252,6 @@ pub fn parse_integer_byte_iterator(s: &str) -> u32 {
         .fold(0, |a, c| a * 10 + (c & 0x0f) as u32)
 }
 
-pub fn parse_7_chars(s: &str) -> u32 {
-    unsafe {
-        let mut chunk = _mm_lddqu_si128(s.as_ptr() as *const _);
-        let zeros = _mm_set_epi8(
-            0, 0, 0, 0, 0, 0, 0, 0, 0, b'0' as i8, b'0' as i8, b'0' as i8, b'0' as i8, b'0' as i8,
-            b'0' as i8, b'0' as i8,
-        );
-        //let zeros = _mm_set1_epi8(b'0' as i8);
-        chunk = _mm_sub_epi16(chunk, zeros);
-        //chunk = _mm_mul_epi32(chunk, _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1));
-        // last 6 digits must be set to 0 becuase the max u32 integer has 10
-        // digits, and we are processing a string with 16 chars. So we need to
-        // remove the first 6 digits. Since the number is loaded in little
-        // endian form, the first 6 digits become the last 6 digits.
-        let mult = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 1, 10, 1, 10, 1, 10);
-        chunk = _mm_maddubs_epi16(chunk, mult);
-
-        // remove the first 3 digits of the number
-        let mult = _mm_set_epi16(1, 100, 1, 100, 1, 100, 1, 100);
-        chunk = _mm_madd_epi16(chunk, mult);
-
-        chunk = _mm_packus_epi32(chunk, chunk);
-        // trim off the first digit and invalidate the first 4 couples of 2
-        // bytes, since we are working with chucks of 4 bytes.
-        let mult = _mm_set_epi16(1, 10000, 1, 10000, 1, 10000, 1, 10000);
-        chunk = _mm_madd_epi16(chunk, mult);
-
-        _mm_cvtsi128_si32(chunk) as u32 / 10
-    }
-}
-
 /// Parses 8 integers from input string using SIMD instructons.
 ///
 /// The input string *must have* at least 16 chars, otherwise the internal
@@ -280,93 +279,6 @@ pub fn parse_8_chars_simd(s: &str) -> u32 {
 
         let chunk = _mm_cvtsi128_si32(chunk) as u32;
         chunk
-    }
-}
-
-pub fn parse_5_chars(s: &str) -> u32 {
-    unsafe {
-        let mut chunk = _mm_lddqu_si128(s.as_ptr() as *const _);
-        let zeros = _mm_set_epi8(
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, b'0' as i8, b'0' as i8, b'0' as i8, b'0' as i8,
-            b'0' as i8,
-        );
-        chunk = _mm_sub_epi16(chunk, zeros);
-        let mult = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 1, 10, 1, 10);
-        chunk = _mm_maddubs_epi16(chunk, mult);
-
-        let mult = _mm_set_epi16(1, 100, 1, 100, 1, 100, 1, 100);
-        chunk = _mm_madd_epi16(chunk, mult);
-
-        chunk = _mm_packus_epi32(chunk, chunk);
-        let mult = _mm_set_epi16(1, 10000, 1, 10000, 1, 10000, 1, 10000);
-        chunk = _mm_madd_epi16(chunk, mult);
-
-        _mm_cvtsi128_si32(chunk) as u32 / 1000
-    }
-}
-pub fn parse_6_chars(s: &str) -> u32 {
-    unsafe {
-        let mut chunk = _mm_lddqu_si128(s.as_ptr() as *const _);
-        let zeros = _mm_set_epi8(
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, b'0' as i8, b'0' as i8, b'0' as i8, b'0' as i8,
-            b'0' as i8, b'0' as i8,
-        );
-        chunk = _mm_sub_epi16(chunk, zeros);
-        let mult = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 10, 1, 10, 1, 10);
-        chunk = _mm_maddubs_epi16(chunk, mult);
-
-        let mult = _mm_set_epi16(1, 100, 1, 100, 1, 100, 1, 100);
-        chunk = _mm_madd_epi16(chunk, mult);
-
-        chunk = _mm_packus_epi32(chunk, chunk);
-        let mult = _mm_set_epi16(1, 10000, 1, 10000, 1, 10000, 1, 10000);
-        chunk = _mm_madd_epi16(chunk, mult);
-
-        _mm_cvtsi128_si32(chunk) as u32 / 100
-    }
-}
-
-pub fn parse_4_chars(s: &str) -> u32 {
-    unsafe {
-        let mut chunk = _mm_lddqu_si128(s.as_ptr() as *const _);
-        let zeros = _mm_set_epi8(
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, b'0' as i8, b'0' as i8, b'0' as i8, b'0' as i8,
-        );
-        chunk = _mm_sub_epi16(chunk, zeros);
-        let mult = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 10, 1, 10);
-        chunk = _mm_maddubs_epi16(chunk, mult);
-
-        let mult = _mm_set_epi16(1, 100, 1, 100, 1, 100, 1, 100);
-        chunk = _mm_madd_epi16(chunk, mult);
-
-        chunk = _mm_packus_epi32(chunk, chunk);
-        let mult = _mm_set_epi16(1, 10000, 1, 10000, 1, 10000, 1, 10000);
-        chunk = _mm_madd_epi16(chunk, mult);
-
-        _mm_cvtsi128_si32(chunk) as u32 / 10000
-    }
-}
-
-pub fn parse_integer(s: &str) -> u32 {
-    // cannot use SIMD acceleration, at least 16 chars are required
-    if s.len() < VECTOR_SIZE {
-        return parse_integer_byte_iterator(s);
-    }
-    // find the first occurence of a separator
-    let index = first_byte_non_numeric(s);
-    match index {
-        9 => return parse_8_chars_simd(s),
-        11 => return parse_more_than_8_simd(s, 1000000),
-        10 => return parse_more_than_8_simd(s, 10000000),
-        8 => return parse_less_than_8_simd(s, 10),
-        7 => return parse_less_than_8_simd(s, 100),
-        6 => return parse_less_than_8_simd(s, 1000),
-        5 => return parse_less_than_8_simd(s, 10000),
-        2..=4 => return parse_4_or_less_chars(s, index - 1),
-        // all the chars is numberic, maybe padded?
-        0 => return parse_integer_simd_all_numbers(s),
-        // it not an u32 number
-        _ => return 0_u32,
     }
 }
 
@@ -423,7 +335,7 @@ pub fn parse_4_or_less_chars(s: &str, chars_to_parse: u32) -> u32 {
         .fold(0, |a, c| a * 10 + (c & 0x0f) as u32)
 }
 
-/// Parses an integer from the string with SIMD.
+/// Parses an integer of at least 8 digits from the string with SIMD.
 ///
 /// This method *assumes* that the input string has exactly 16 chars, eventually
 /// padded with zeros.
