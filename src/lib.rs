@@ -121,7 +121,7 @@ pub fn parse_integer(s: &str, separator: u8, eol: u8) -> u32 {
         32 => return parse_integer_simd_all_numbers(s),
         // TODO: throw an error here
         // it not an u32 number
-        _ => return 0_u32,
+        _ => return u32::MIN,
     }
 }
 
