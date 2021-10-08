@@ -1,21 +1,13 @@
 #![feature(stdsimd)]
 
-// TODO do not replicate masks
-
 use std::arch::x86_64::{
     __m128i,
-    // Set register to all zeros.
-    // _mm_setzero_si128,
-
     // Compute the binary and between two registers
     // Reference: https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_and&expand=1046,6130,6130,4335,4335,1046,1180,349
     _mm_and_si128,
 
     // negate the first argument, and then compute an AND with second argument
     _mm_andnot_si128,
-
-    // Shift left by byte
-    _mm_bsrli_si128,
 
     // Compare packed 8-bit integers for equality, and create a mask with 0xFF
     // if the byte of the first regitest is equal to the byte of the second
@@ -66,6 +58,9 @@ use std::arch::x86_64::{
     // 16-bit integers, and pack the saturated results in dst.
     _mm_maddubs_epi16,
 
+    // Set register to all zeros.
+    // _mm_setzero_si128,
+    _mm_movemask_epi8,
     // Compute the bitwise OR of the two regiters.
     _mm_or_si128,
 
@@ -105,25 +100,25 @@ const VECTOR_SIZE: usize = std::mem::size_of::<__m128i>();
 /// used; in this case, the method resorts to an iterative process to parse the
 /// integer.  If the string has at least 16 chars, then it can perform parsing
 /// exploiting the SIMD intrincs.
-pub fn parse_integer(s: &str) -> u32 {
+pub fn parse_integer(s: &str, separator: u8, eol: u8) -> u32 {
     // TODO: handle error in string, i.e. no number to parse
     // cannot use SIMD acceleration, at least 16 chars are required
     if s.len() < VECTOR_SIZE {
-        return parse_integer_byte_iterator(s);
+        return parse_integer_byte_iterator(s, separator, eol);
     }
     // find the first occurence of a separator
-    let index = first_byte_non_numeric(s);
+    let (index, mask) = last_byte_digit(s, separator, eol);
     match index {
-        9 => return parse_8_chars_simd(s),
-        11 => return parse_more_than_8_simd(s, 1000000),
-        10 => return parse_more_than_8_simd(s, 10000000),
-        8 => return parse_less_than_8_simd(s, 10),
-        7 => return parse_less_than_8_simd(s, 100),
-        6 => return parse_less_than_8_simd(s, 1000),
-        5 => return parse_less_than_8_simd(s, 10000),
-        2..=4 => return parse_4_or_less_chars(s, index - 1),
-        // all the chars is numeric, maybe padded?
-        0 => return parse_integer_simd_all_numbers(s),
+        8 => return parse_8_chars_simd(s),
+        10 => return parse_more_than_8_simd(s, 1000000, mask),
+        9 => return parse_more_than_8_simd(s, 10000000, mask),
+        7 => return parse_less_than_8_simd(s, 10, mask),
+        6 => return parse_less_than_8_simd(s, 100, mask),
+        5 => return parse_less_than_8_simd(s, 1000, mask),
+        4 => return parse_less_than_8_simd(s, 10000, mask),
+        1..=3 => return parse_byte_iterator_limited(s, index),
+        // all the chars are numeric, maybe padded?
+        32 => return parse_integer_simd_all_numbers(s),
         // TODO: throw an error here
         // it not an u32 number
         _ => return 0_u32,
@@ -163,15 +158,17 @@ pub fn check_all_chars_are_valid(string: &str) -> bool {
 }
 
 #[inline]
-/// Finds the first nonnumeric value in the string.
+/// Finds the last digit value in the string, and compute the parsing mask.
 ///
-/// This *assumes* that the string has exactly 16 chars
-/// and it's padded with zeros if necessary.
-pub fn first_byte_non_numeric(string: &str) -> u32 {
+/// When the string is composed of all digits, then the returned index will be
+/// 32, i.e a parsing mask made up of all zeros.
+/// This method *assumes* that the string has exactly 16 chars and it's padded
+/// with zeros if necessary.
+pub fn last_byte_digit(string: &str, separator: u8, eol: u8) -> (u32, __m128i) {
     unsafe {
         // create costant registers
-        let commas = _mm_set1_epi8(b',' as i8);
-        let newlines = _mm_set1_epi8(b'\n' as i8);
+        let commas = _mm_set1_epi8(separator as i8);
+        let newlines = _mm_set1_epi8(eol as i8);
 
         // load data into memory
         let value = _mm_loadu_si128(string.as_ptr() as _);
@@ -183,50 +180,15 @@ pub fn first_byte_non_numeric(string: &str) -> u32 {
         // create the OR of the two regiters to place the first index correctly
         let or_comma_newline = _mm_or_si128(comma_mask, newline_mask);
 
-        // Since there is no instruction to convert 128 integer into a u128,
-        // first load to upper 64 bits and then the lower 64 bits, shifting
-        // by 8 bytes.
-        let lower = _mm_cvtsi128_si64(or_comma_newline) as u64;
-        let or_comma_newline = _mm_bsrli_si128(or_comma_newline, 8);
-        let upper = _mm_cvtsi128_si64(or_comma_newline) as u64;
+        // creates a mask from the most significant bit of each 8-bit element,
+        // and stores the result in an int
+        let movemask = _mm_movemask_epi8(or_comma_newline);
+        // the trailing zeros of the mask are the number of digits before the
+        // separator in a little endian format
+        let index = movemask.trailing_zeros();
 
-        // if the first 8 bytes are all set to zero, check the upper part
-        if lower == 0 {
-            // if also upper is 0, then no separator is present
-            if upper == 0 {
-                return 0;
-            }
-            // divide by 8 because we want to count in byte, and add 9 because
-            // lower is all zeros, so 8 byte are skipped, plus 1 because the comma
-            // or newline is not included in the trailing count.
-            upper.trailing_zeros() / 8 + 9
-        } else {
-            // the comma or newline is in the first 8 bytes of the number
-            lower.trailing_zeros() / 8 + 1
-        }
-    }
-}
-
-/// Creates a mask to remove all the elements after the separator.
-///
-/// By default, this method matches only ',' and '\n'
-pub fn create_parsing_mask(s: &str) -> __m128i {
-    unsafe {
-        // create costant registers
-        let commas = _mm_set1_epi8(b',' as i8);
-        let newlines = _mm_set1_epi8(b'\n' as i8);
-
-        // load data into memory
-        let value = _mm_loadu_si128(s.as_ptr() as _);
-
-        // compare for equality and find the occurences of commas and newlines
-        let comma_mask = _mm_cmpeq_epi8(value, commas);
-        let newline_mask = _mm_cmpeq_epi8(value, newlines);
-
-        // create the OR of the two regiters to place the first index correctly
-        let or_comma_newline = _mm_or_si128(comma_mask, newline_mask);
-
-        propagate(or_comma_newline)
+        let mask = propagate(or_comma_newline);
+        (index, mask)
     }
 }
 
@@ -246,9 +208,9 @@ unsafe fn propagate(mut v: __m128i) -> __m128i {
 /// exploits the fact that in ASCII encoding, digits are stored in the 4 least
 /// significant bits of the ASCII code. As example, consider '1': in binary is
 /// 0011-0001, and masking with 0x0f we get 0000-0001, which is 1.
-pub fn parse_integer_byte_iterator(s: &str) -> u32 {
+pub fn parse_integer_byte_iterator(s: &str, separator: u8, eol: u8) -> u32 {
     s.bytes()
-        .take_while(|&byte| (byte != b',') && (byte != b'\n'))
+        .take_while(|&byte| (byte != separator) && (byte != eol))
         .fold(0, |a, c| a * 10 + (c & 0x0f) as u32)
 }
 
@@ -304,14 +266,13 @@ pub fn parse_integer_simd_all_numbers(s: &str) -> u32 {
     }
 }
 
-pub fn parse_less_than_8_simd(s: &str, scaling_factor: u32) -> u32 {
+pub fn parse_less_than_8_simd(s: &str, scaling_factor: u32, mask: __m128i) -> u32 {
     unsafe {
         let mut chunk = _mm_lddqu_si128(s.as_ptr() as *const _);
         let zeros = _mm_set1_epi8(b'0' as i8);
         chunk = _mm_sub_epi16(chunk, zeros);
 
-        // create the mask and remove the unwanted part of the number to not parse
-        let mask = create_parsing_mask(s);
+        // remove the unwanted part of the number to not parse
         chunk = _mm_andnot_si128(mask, chunk);
 
         let mult = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 1, 10, 1, 10, 1, 10, 1, 10);
@@ -329,7 +290,8 @@ pub fn parse_less_than_8_simd(s: &str, scaling_factor: u32) -> u32 {
     }
 }
 
-pub fn parse_4_or_less_chars(s: &str, chars_to_parse: u32) -> u32 {
+/// Parses a limited amount of digits from the string
+pub fn parse_byte_iterator_limited(s: &str, chars_to_parse: u32) -> u32 {
     s.bytes()
         .take(chars_to_parse as usize)
         .fold(0, |a, c| a * 10 + (c & 0x0f) as u32)
@@ -339,14 +301,12 @@ pub fn parse_4_or_less_chars(s: &str, chars_to_parse: u32) -> u32 {
 ///
 /// This method *assumes* that the input string has exactly 16 chars, eventually
 /// padded with zeros.
-pub fn parse_more_than_8_simd(s: &str, scaling_factor: u64) -> u32 {
+pub fn parse_more_than_8_simd(s: &str, scaling_factor: u64, mask: __m128i) -> u32 {
     unsafe {
         let mut chunk = _mm_lddqu_si128(std::mem::transmute_copy(&s));
         let zeros = _mm_set1_epi8(b'0' as i8);
         chunk = _mm_sub_epi16(chunk, zeros);
 
-        // create the mask and remove the unwanted part of the number to not parse
-        let mask = create_parsing_mask(s);
         chunk = _mm_andnot_si128(mask, chunk);
 
         let mult = _mm_set_epi8(1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10);
