@@ -99,9 +99,8 @@ const VECTOR_SIZE: usize = std::mem::size_of::<__m128i>();
 /// If the string has length less than 16 chars, then no SIMD acceleration is
 /// used; in this case, the method resorts to an iterative process to parse the
 /// integer.  If the string has at least 16 chars, then it can perform parsing
-/// exploiting the SIMD intrincs.
-pub fn parse_integer(s: &str, separator: u8, eol: u8) -> u32 {
-    // TODO: handle error in string, i.e. no number to parse
+/// exploiting the SIMD intrinsics.
+pub fn parse_integer(s: &str, separator: u8, eol: u8) -> Option<u32> {
     // cannot use SIMD acceleration, at least 16 chars are required
     if s.len() < VECTOR_SIZE {
         return parse_integer_byte_iterator(s, separator, eol);
@@ -109,19 +108,18 @@ pub fn parse_integer(s: &str, separator: u8, eol: u8) -> u32 {
     // find the first occurence of a separator
     let (index, mask) = last_byte_digit(s, separator, eol);
     match index {
-        8 => return parse_8_chars_simd(s),
-        10 => return parse_more_than_8_simd(s, 1000000, mask),
-        9 => return parse_more_than_8_simd(s, 10000000, mask),
-        7 => return parse_less_than_8_simd(s, 10, mask),
-        6 => return parse_less_than_8_simd(s, 100, mask),
-        5 => return parse_less_than_8_simd(s, 1000, mask),
-        4 => return parse_less_than_8_simd(s, 10000, mask),
-        1..=3 => return parse_byte_iterator_limited(s, index),
+        8 => return Some(parse_8_chars_simd(s)),
+        10 => return Some(parse_more_than_8_simd(s, 1000000, mask)),
+        9 => return Some(parse_more_than_8_simd(s, 10000000, mask)),
+        7 => return Some(parse_less_than_8_simd(s, 10, mask)),
+        6 => return Some(parse_less_than_8_simd(s, 100, mask)),
+        5 => return Some(parse_less_than_8_simd(s, 1000, mask)),
+        4 => return Some(parse_less_than_8_simd(s, 10000, mask)),
+        1..=3 => return Some(parse_byte_iterator_limited(s, index)),
         // all the chars are numeric, maybe padded?
-        32 => return parse_integer_simd_all_numbers(s),
-        // TODO: throw an error here
-        // it not an u32 number
-        _ => return u32::MIN,
+        32 => return Some(parse_integer_simd_all_numbers(s)),
+        // there is no u32 to parse
+        _ => return None,
     }
 }
 
@@ -208,10 +206,11 @@ unsafe fn propagate(mut v: __m128i) -> __m128i {
 /// exploits the fact that in ASCII encoding, digits are stored in the 4 least
 /// significant bits of the ASCII code. As example, consider '1': in binary is
 /// 0011-0001, and masking with 0x0f we get 0000-0001, which is 1.
-pub fn parse_integer_byte_iterator(s: &str, separator: u8, eol: u8) -> u32 {
+pub fn parse_integer_byte_iterator(s: &str, separator: u8, eol: u8) -> Option<u32> {
     s.bytes()
         .take_while(|&byte| (byte != separator) && (byte != eol))
-        .fold(0, |a, c| a * 10 + (c & 0x0f) as u32)
+        .map(|x| (x & 0x0f) as u32)
+        .reduce(|a, c| a * 10 + c)
 }
 
 /// Parses 8 integers from input string using SIMD instructons.

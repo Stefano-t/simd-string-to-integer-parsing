@@ -227,7 +227,15 @@ fn main() {
     );
     print!(
         "{func_name}_min,{func_name}_max,{func_name}_mean,{func_name}_std,",
-        func_name = "parse_integer_simd_sep"
+        func_name = "std_delimeter"
+    );
+    print!(
+        "{func_name}_min,{func_name}_max,{func_name}_mean,{func_name}_std,",
+        func_name = "parse_integer_no_simd_delimeter"
+    );
+    print!(
+        "{func_name}_min,{func_name}_max,{func_name}_mean,{func_name}_std,",
+        func_name = "parse_integer_simd_delimeter"
     );
     print!("\n");
 
@@ -241,13 +249,24 @@ fn std_test(number: &str) -> u32 {
     number.parse().unwrap()
 }
 
+fn std_delimeter_test(number: &str) -> u32 {
+    let to_parse = number.split(',').next().unwrap();
+    to_parse.parse().unwrap()
+}
+
 fn bench_len(l: usize) {
     print!("{},", l);
     // generate a number to parse
     let number_to_parse = (0..l).map(|_| "1").collect::<Vec<_>>().join("");
     bench!(number_to_parse.as_str(), TRIALS, std_test);
     bench!(&number_to_parse, b',', b'\n', TRIALS, parse_integer);
-    // generate a 16 chars string to use SIMD
+    // generate a number of 15 digits with a comma. In this way, no SIMD is used
+    let mut vec = (0..15).map(|_| "1").collect::<Vec<_>>();
+    vec[l] = ",";
+    let number_to_parse = vec.join("");
+    bench!(&number_to_parse, TRIALS, std_delimeter_test);
+    bench!(&number_to_parse, b',', b'\n', TRIALS, parse_integer);
+    // generate a 16 chars string to use SIMD and place a comma
     let mut vec = (0..16).map(|_| "1").collect::<Vec<_>>();
     vec[l] = ",";
     let number_to_parse = vec.join("");

@@ -54,7 +54,7 @@ fn bench_last_byte_digit_multiple_separator(b: &mut Bencher) {
 #[bench]
 fn bench_parse_integer_no_simd_2_digits(b: &mut Bencher) {
     let case = "12";
-    assert_eq!(parse_integer(&case, b',', b'\n'), 12);
+    assert_eq!(parse_integer(&case, b',', b'\n'), Some(12));
     b.bytes = case.len() as u64;
     b.iter(|| parse_integer(black_box(&case), b',', b'\n'))
 }
@@ -69,7 +69,7 @@ fn bench_std_parse_2_digits(b: &mut Bencher) {
 #[bench]
 fn bench_parse_integer_no_simd_5_digits(b: &mut Bencher) {
     let case = "12345";
-    assert_eq!(parse_integer(&case, b',', b'\n'), 12345);
+    assert_eq!(parse_integer(&case, b',', b'\n'), Some(12345));
     b.bytes = case.len() as u64;
     b.iter(|| parse_integer(black_box(&case), b',', b'\n'))
 }
@@ -84,7 +84,7 @@ fn bench_std_parse_5_digits(b: &mut Bencher) {
 #[bench]
 fn bench_parse_integer_no_simd_10_digits(b: &mut Bencher) {
     let case = "1234567890";
-    assert_eq!(parse_integer(&case, b',', b'\n'), 1234567890);
+    assert_eq!(parse_integer(&case, b',', b'\n'), Some(1234567890));
     b.bytes = case.len() as u64;
     b.iter(|| parse_integer(black_box(&case), b',', b'\n'))
 }
@@ -99,7 +99,7 @@ fn bench_std_parse_10_digits(b: &mut Bencher) {
 #[bench]
 fn bench_parse_integer_no_simd_10_digits_separator(b: &mut Bencher) {
     let case = "1234567890,1";
-    assert_eq!(parse_integer(&case, b',', b'\n'), 1234567890);
+    assert_eq!(parse_integer(&case, b',', b'\n'), Some(1234567890));
     b.bytes = case.len() as u64;
     b.iter(|| parse_integer(black_box(&case), b',', b'\n'))
 }
@@ -107,7 +107,7 @@ fn bench_parse_integer_no_simd_10_digits_separator(b: &mut Bencher) {
 #[bench]
 fn bench_parse_integer_simd_2_digits(b: &mut Bencher) {
     let case = "12,0123456789012";
-    assert_eq!(parse_integer(&case, b',', b'\n'), 12);
+    assert_eq!(parse_integer(&case, b',', b'\n'), Some(12));
     b.bytes = case.len() as u64;
     b.iter(|| parse_integer(black_box(&case), b',', b'\n'))
 }
@@ -115,7 +115,7 @@ fn bench_parse_integer_simd_2_digits(b: &mut Bencher) {
 #[bench]
 fn bench_parse_integer_simd_5_digits(b: &mut Bencher) {
     let case = "12012,3456789012";
-    assert_eq!(parse_integer(&case, b',', b'\n'), 12012);
+    assert_eq!(parse_integer(&case, b',', b'\n'), Some(12012));
     b.bytes = case.len() as u64;
     b.iter(|| parse_integer(black_box(&case), b',', b'\n'))
 }
@@ -123,7 +123,7 @@ fn bench_parse_integer_simd_5_digits(b: &mut Bencher) {
 #[bench]
 fn bench_parse_integer_simd_8_digits(b: &mut Bencher) {
     let case = "12012345,6789012";
-    assert_eq!(parse_integer(&case, b',', b'\n'), 12012345);
+    assert_eq!(parse_integer(&case, b',', b'\n'), Some(12012345));
     b.bytes = case.len() as u64;
     b.iter(|| parse_integer(black_box(&case), b',', b'\n'))
 }
@@ -131,7 +131,7 @@ fn bench_parse_integer_simd_8_digits(b: &mut Bencher) {
 #[bench]
 fn bench_parse_integer_simd_10_digits(b: &mut Bencher) {
     let case = "1201234567,89012";
-    assert_eq!(parse_integer(&case, b',', b'\n'), 1201234567);
+    assert_eq!(parse_integer(&case, b',', b'\n'), Some(1201234567));
     b.bytes = case.len() as u64;
     b.iter(|| parse_integer(black_box(&case), b',', b'\n'))
 }
@@ -139,7 +139,7 @@ fn bench_parse_integer_simd_10_digits(b: &mut Bencher) {
 #[bench]
 fn bench_parse_integer_simd_no_separator(b: &mut Bencher) {
     let case = "0000001234567890";
-    assert_eq!(parse_integer(&case, b',', b'\n'), 1234567890);
+    assert_eq!(parse_integer(&case, b',', b'\n'), Some(1234567890));
     b.bytes = case.len() as u64;
     b.iter(|| parse_integer(black_box(&case), b',', b'\n'))
 }
