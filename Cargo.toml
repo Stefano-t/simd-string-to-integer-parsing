@@ -1,6 +1,6 @@
 cargo-features = ["edition2021"]
 [package]
-name = "simd_string_to_integer_parsing"
+name = "simd_parsing"
 version = "0.1.0"
 edition = "2018"
 

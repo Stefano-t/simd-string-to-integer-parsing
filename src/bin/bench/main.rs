@@ -80,7 +80,7 @@
 //!
 use std::arch::x86_64::{__rdtscp, _mm_lfence, _mm_mfence, _mm_prefetch, _rdtsc, _MM_HINT_T0};
 
-use simd_string_to_integer_parsing::*;
+use simd_parsing::*;
 
 // Wrapper function, these are unsafe because the cpu might not have
 // one of the  instruction. If this happens it will crash with
