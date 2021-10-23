@@ -129,7 +129,7 @@ pub fn parse_integer(s: &str, separator: u8, eol: u8) -> Option<u32> {
 ///
 /// This *assumes* that the string has exactly length 16
 /// and it's padded with zeros if needed.
-fn check_all_chars_are_valid(string: &str) -> bool {
+pub fn check_all_chars_are_valid(string: &str) -> bool {
     // We rust cannot guarantee safety of AVX and pointers in general
     // therefore we need to work inside an unsafe block
     unsafe {
@@ -163,7 +163,7 @@ fn check_all_chars_are_valid(string: &str) -> bool {
 /// 32, i.e a parsing mask made up of all zeros.
 /// This method *assumes* that the string has exactly 16 chars and it's padded
 /// with zeros if necessary.
-fn last_byte_digit(string: &str, separator: u8, eol: u8) -> (u32, __m128i) {
+pub fn last_byte_digit(string: &str, separator: u8, eol: u8) -> (u32, __m128i) {
     unsafe {
         // create costant registers
         let commas = _mm_set1_epi8(separator as i8);
@@ -205,7 +205,7 @@ unsafe fn propagate(mut v: __m128i) -> __m128i {
 ///
 /// The input string *must have* at least 16 chars, otherwise the internal
 /// operations will load memory outside the string bound.
-fn parse_8_chars_simd(s: &str) -> u32 {
+pub fn parse_8_chars_simd(s: &str) -> u32 {
     unsafe {
         let mut chunk = _mm_lddqu_si128(s.as_ptr() as *const _);
         // do not touch last 8 chars, since we don't know what they contain, avoiding
@@ -231,7 +231,7 @@ fn parse_8_chars_simd(s: &str) -> u32 {
     }
 }
 
-fn parse_integer_simd_all_numbers(s: &str) -> u32 {
+pub fn parse_integer_simd_all_numbers(s: &str) -> u32 {
     unsafe {
         let mut chunk = _mm_lddqu_si128(s.as_ptr() as *const _);
         let zeros = _mm_set1_epi8(b'0' as i8);
@@ -253,7 +253,7 @@ fn parse_integer_simd_all_numbers(s: &str) -> u32 {
     }
 }
 
-fn parse_less_than_8_simd(s: &str, scaling_factor: u32, mask: __m128i) -> u32 {
+pub fn parse_less_than_8_simd(s: &str, scaling_factor: u32, mask: __m128i) -> u32 {
     unsafe {
         let mut chunk = _mm_lddqu_si128(s.as_ptr() as *const _);
         let zeros = _mm_set1_epi8(b'0' as i8);
@@ -281,7 +281,7 @@ fn parse_less_than_8_simd(s: &str, scaling_factor: u32, mask: __m128i) -> u32 {
 ///
 /// This method *assumes* that the input string has exactly 16 chars, eventually
 /// padded with zeros.
-fn parse_more_than_8_simd(s: &str, scaling_factor: u64, mask: __m128i) -> u32 {
+pub fn parse_more_than_8_simd(s: &str, scaling_factor: u64, mask: __m128i) -> u32 {
     unsafe {
         let mut chunk = _mm_lddqu_si128(std::mem::transmute_copy(&s));
         let zeros = _mm_set1_epi8(b'0' as i8);
