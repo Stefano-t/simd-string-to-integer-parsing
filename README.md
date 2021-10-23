@@ -12,7 +12,7 @@ Since this library internally uses SIMD intrinsics, they are only supported when
 
 ## Some benchmarks
 
-The following benchmarks are generated via the `src/main.rs` file, reading the TSC register. Since they heavily depend on the hosting machine, here are the specs of the testing machine:
+The following benchmarks are generated via the `src/bin/bench/main.rs` file, reading the TSC register. Since they heavily depend on the hosting machine, here are the specs of the testing machine:
 
 ```console
 $ sudo journalctl --boot | grep 'kernel: tsc:' -i | cut -d' ' -f5-
@@ -30,6 +30,9 @@ $ screenfetch -n -N
  CPU: Intel Core i5-2415M @ 4x 2.9GHz [60.0°C]
  GPU: Mesa DRI Intel(R) HD Graphics 3000 (SNB GT2)
  RAM: 1787MiB / 3841MiB
+ 
+$ rustc --version
+ rustc 1.56.0-nightly (25b764849 2021-08-04)
 ```
 
 Here are the benchmarks:
