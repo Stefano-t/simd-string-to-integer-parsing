@@ -3,7 +3,7 @@
 #![allow(clippy::unreadable_literal)]
 extern crate test;
 
-use simd_parsing::sse2::*;
+use simd_parsing::*;
 use test::{black_box, Bencher};
 
 // max integer with 32 bit is 4294967295

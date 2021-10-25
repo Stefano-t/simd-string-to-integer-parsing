@@ -1,5 +1,3 @@
-use crate::fallback;
-
 use std::arch::x86_64::{
     __m128i,
     // Compute the binary and between two registers
@@ -91,37 +89,6 @@ use std::arch::x86_64::{
     _mm_test_all_ones,
 };
 
-// minimum size required by an input string to use SIMD algorithms
-const VECTOR_SIZE: usize = std::mem::size_of::<__m128i>();
-
-/// Parses an integer from the given string
-///
-/// If the string has length less than 16 chars, then no SIMD acceleration is
-/// used; in this case, the method resorts to an iterative process to parse the
-/// integer.  If the string has at least 16 chars, then it can perform parsing
-/// exploiting the SIMD intrinsics.
-pub fn parse_integer(s: &str, separator: u8, eol: u8) -> Option<u32> {
-    // cannot use SIMD acceleration, at least 16 chars are required
-    if s.len() < VECTOR_SIZE {
-        return fallback::parse_integer_byte_iterator(s, separator, eol);
-    }
-    // find the first occurence of a separator
-    let (index, mask) = last_byte_digit(s, separator, eol);
-    match index {
-        8 => return Some(parse_8_chars_simd(s)),
-        10 => return Some(parse_more_than_8_simd(s, 1000000, mask)),
-        9 => return Some(parse_more_than_8_simd(s, 10000000, mask)),
-        7 => return Some(parse_less_than_8_simd(s, 10, mask)),
-        6 => return Some(parse_less_than_8_simd(s, 100, mask)),
-        5 => return Some(parse_less_than_8_simd(s, 1000, mask)),
-        4 => return Some(parse_less_than_8_simd(s, 10000, mask)),
-        1..=3 => return Some(fallback::parse_byte_iterator_limited(s, index)),
-        // all the chars are numeric, maybe padded?
-        32 => return Some(parse_integer_simd_all_numbers(s)),
-        // there is no u32 to parse
-        _ => return None,
-    }
-}
 
 #[allow(dead_code)]
 #[inline]
@@ -157,38 +124,37 @@ pub fn check_all_chars_are_valid(string: &str) -> bool {
 }
 
 #[inline]
+#[target_feature(enable = "sse2")]
 /// Finds the last digit value in the string, and compute the parsing mask.
 ///
 /// When the string is composed of all digits, then the returned index will be
 /// 32, i.e a parsing mask made up of all zeros.
 /// This method *assumes* that the string has exactly 16 chars and it's padded
 /// with zeros if necessary.
-pub fn last_byte_digit(string: &str, separator: u8, eol: u8) -> (u32, __m128i) {
-    unsafe {
-        // create costant registers
-        let commas = _mm_set1_epi8(separator as i8);
-        let newlines = _mm_set1_epi8(eol as i8);
+pub unsafe fn last_byte_digit(string: &str, separator: u8, eol: u8) -> (u32, __m128i) {
+    // create costant registers
+    let commas = _mm_set1_epi8(separator as i8);
+    let newlines = _mm_set1_epi8(eol as i8);
 
-        // load data into memory
-        let value = _mm_loadu_si128(string.as_ptr() as _);
+    // load data into memory
+    let value = _mm_loadu_si128(string.as_ptr() as _);
 
-        // compare for equality and find the occurences of commas and newlines
-        let comma_mask = _mm_cmpeq_epi8(value, commas);
-        let newline_mask = _mm_cmpeq_epi8(value, newlines);
+    // compare for equality and find the occurences of commas and newlines
+    let comma_mask = _mm_cmpeq_epi8(value, commas);
+    let newline_mask = _mm_cmpeq_epi8(value, newlines);
 
-        // create the OR of the two regiters to place the first index correctly
-        let or_comma_newline = _mm_or_si128(comma_mask, newline_mask);
+    // create the OR of the two regiters to place the first index correctly
+    let or_comma_newline = _mm_or_si128(comma_mask, newline_mask);
 
-        // creates a mask from the most significant bit of each 8-bit element,
-        // and stores the result in an int
-        let movemask = _mm_movemask_epi8(or_comma_newline);
-        // the trailing zeros of the mask are the number of digits before the
-        // separator in a little endian format
-        let index = movemask.trailing_zeros();
+    // creates a mask from the most significant bit of each 8-bit element,
+    // and stores the result in an int
+    let movemask = _mm_movemask_epi8(or_comma_newline);
+    // the trailing zeros of the mask are the number of digits before the
+    // separator in a little endian format
+    let index = movemask.trailing_zeros();
 
-        let mask = propagate(or_comma_newline);
-        (index, mask)
-    }
+    let mask = propagate(or_comma_newline);
+    (index, mask)
 }
 
 #[inline]
