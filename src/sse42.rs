@@ -29,7 +29,10 @@ pub unsafe fn check_all_chars_are_valid(s: &str) -> bool {
 }
 
 #[target_feature(enable = "sse4.2")]
-pub unsafe fn parsing_mask(s: &str) -> __m128i {
+#[allow(unused)]
+pub fn last_byte_digit(s: &str, separator: u8, eol: u8) -> (u32, __m128i) {
+    // ignore `separator` and `eol`, since function `_mm_cmpistrm` can
+    // compare automatically all numeric values and decect when they are not
     let to_cmp = _mm_loadu_si128(s.as_ptr() as *const _);
     let valid_nums = _mm_loadu_si128(NUMERIC_VALUES.as_ptr() as *const _);
     let mask = _mm_cmpistrm(
@@ -38,7 +41,9 @@ pub unsafe fn parsing_mask(s: &str) -> __m128i {
         // cmp for any match | negate the result | create a byte mask
         _SIDD_CMP_EQUAL_ANY | _SIDD_NEGATIVE_POLARITY | _SIDD_UNIT_MASK
     );
-    propagate(mask)
+    // translate the mask into an integer
+    let idx = _mm_movemask_epi8(mask);
+    (idx.trailing_zeros(), propagate(mask))
 }
 
 #[inline]
