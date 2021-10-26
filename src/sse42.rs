@@ -5,7 +5,6 @@ use std::arch::x86_64::*;
 const NUMERIC_RANGE: &[u8; 16] = b"09\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 const NUMERIC_VALUES: &[u8; 16] = b"1234567890\0\0\0\0\0\0";
 
-
 #[allow(dead_code)]
 #[target_feature(enable = "sse2")]
 unsafe fn dump_m128i(v: __m128i) {
@@ -20,12 +19,15 @@ unsafe fn dump_m128i(v: __m128i) {
 pub unsafe fn check_all_chars_are_valid(s: &str) -> bool {
     let to_cmp = _mm_loadu_si128(s.as_ptr() as *const _);
     let range = _mm_loadu_si128(NUMERIC_RANGE.as_ptr() as *const _);
-    let idx = _mm_cmpistri(range, to_cmp, _SIDD_CMP_RANGES | _SIDD_MASKED_NEGATIVE_POLARITY);
+    let idx = _mm_cmpistri(
+        range,
+        to_cmp,
+        _SIDD_CMP_RANGES | _SIDD_MASKED_NEGATIVE_POLARITY,
+    );
     idx == 16
 }
 
 #[target_feature(enable = "sse4.2")]
-#[allow(unused)]
 pub unsafe fn last_byte_digit(s: &str, separator: u8, eol: u8) -> (u32, __m128i) {
     // ignore `separator` and `eol`, since function `_mm_cmpistrm` can
     // compare automatically all numeric values and decect when they are not
@@ -35,7 +37,7 @@ pub unsafe fn last_byte_digit(s: &str, separator: u8, eol: u8) -> (u32, __m128i)
         valid_nums,
         to_cmp,
         // cmp for any match | negate the result | create a byte mask
-        _SIDD_CMP_EQUAL_ANY | _SIDD_NEGATIVE_POLARITY | _SIDD_UNIT_MASK
+        _SIDD_CMP_EQUAL_ANY | _SIDD_NEGATIVE_POLARITY | _SIDD_UNIT_MASK,
     );
     // translate the mask into an integer
     let idx = _mm_movemask_epi8(mask);

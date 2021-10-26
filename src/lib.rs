@@ -26,6 +26,14 @@ pub fn last_byte_digit(s: &str, separator: u8, eof: u8) -> (u32, __m128i) {
         sse2::last_byte_digit(s, separator, eof)
     }
 
+    #[cfg(all(not(target_feature = "sse4.2"), not(target_feature = "sse2")))]
+    fn imp_fn(s: &str, separator: u8, eof: u8) -> (u32, __m128i) {
+        panic!(
+            "Function `last_byte_digit` is only supported for sse2 or sse4.2.
+For now, there is no fallback function for this implementation"
+        );
+    }
+
     unsafe { imp_fn(s, separator, eof) }
 }
 
@@ -42,6 +50,13 @@ pub fn check_all_chars_are_valid(s: &str) -> bool {
     unsafe fn imp_fn(s: &str) -> bool {
         sse2::check_all_chars_are_valid(s)
     }
+
+    #[inline]
+    #[cfg(all(not(target_feature = "sse4.2"), not(target_feature = "sse2")))]
+    unsafe fn imp_fn(s: &str) -> bool {
+        fallback::check_all_chars_are_valid(s);
+    }
+
     unsafe { imp_fn(s) }
 }
 

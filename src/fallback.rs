@@ -17,3 +17,8 @@ pub fn parse_byte_iterator_limited(s: &str, chars_to_parse: u32) -> u32 {
         .take(chars_to_parse as usize)
         .fold(0, |a, c| a * 10 + (c & 0x0f) as u32)
 }
+
+/// Checks if the string is composed of all numbers
+pub fn check_all_chars_are_valid(s: &str) -> bool {
+    s.bytes().all(|b| b >= b'0' && b <= b'9')
+}
