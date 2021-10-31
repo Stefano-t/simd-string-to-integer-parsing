@@ -55,24 +55,50 @@ pub unsafe fn last_byte_digit(string: &str, separator: u8, eol: u8) -> (u32, __m
     let movemask = _mm256_movemask_epi8(or_comma_newline);
     // the trailing zeros of the mask are the number of digits before the
     // separator in a little endian format
-    let index = movemask.trailing_zeros();
+    let idx = movemask.trailing_zeros();
 
-    let mask = propagate(or_comma_newline);
-    (index, mask)
+    let mask = propagate(or_comma_newline, idx);
+    (idx, mask)
 }
 
-// TODO: correct this method, the shift is not correct
 #[inline]
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 /// Propagates the input mask to the left.
-unsafe fn propagate(mut v: __m256i) -> __m256i {
+///
+/// Since AVX doesn't support 256 wide shifts (at least, it seems to me so), the
+/// propagation of bits in the lower 128 bits to the higher 128 bits is made by
+/// simply manually setting them. The second parameter `first_byte` is used to
+/// decide whether to propagate the mask in the higher bits or not.
+unsafe fn propagate(mut v: __m256i, first_byte: u32) -> __m256i {
     v = _mm256_or_si256(v, _mm256_slli_si256(v as _, 1) as _);
     v = _mm256_or_si256(v, _mm256_slli_si256(v as _, 2) as _);
     v = _mm256_or_si256(v, _mm256_slli_si256(v as _, 4) as _);
     v = _mm256_or_si256(v, _mm256_slli_si256(v as _, 8) as _);
-    v = _mm256_or_si256(v, _mm256_slli_si256(v as _, 16) as _);
+    // set the 128 higher bits to all 1s only if the mask starts from the lower
+    // 128 bits
+    if first_byte < (VECTOR_SIZE / 2) as u32 {
+        v = _mm256_or_si256(v, _mm256_set_epi64x(-1, -1, 0, 0));
+    }
     v
+}
+
+/// Prints an m256i
+unsafe fn dump_m256i(v: __m256i) {
+    let mut vdup = v;
+    let lower = _mm256_extractf128_si256(v, 0);
+    let upper = _mm256_extractf128_si256(v, 1);
+    dump_m128i(upper);
+    dump_m128i(lower);
+}
+
+/// Prints an m128i
+unsafe fn dump_m128i(v: __m128i) {
+    let mut vdup = v;
+    let lower = _mm_cvtsi128_si64(vdup);
+    vdup = _mm_bsrli_si128(vdup, 8);
+    let upper = _mm_cvtsi128_si64(vdup);
+    println!("64: {:064b}\n64: {:064b}", upper, lower);
 }
 
 #[cfg(test)]
