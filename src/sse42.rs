@@ -28,7 +28,7 @@ pub unsafe fn check_all_chars_are_valid(s: &str) -> bool {
 }
 
 #[target_feature(enable = "sse4.2")]
-pub unsafe fn last_byte_digit(s: &str, separator: u8, eol: u8) -> (u32, __m128i) {
+pub unsafe fn last_byte_digit(s: &str, _separator: u8, _eol: u8) -> (u32, __m128i) {
     // ignore `separator` and `eol`, since function `_mm_cmpistrm` can
     // compare automatically all numeric values and decect when they are not
     let to_cmp = _mm_loadu_si128(s.as_ptr() as *const _);
