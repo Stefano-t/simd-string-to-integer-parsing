@@ -3,10 +3,10 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+pub mod avx;
 pub mod fallback;
 pub mod sse41;
 pub mod sse42;
-pub mod avx;
 
 #[inline]
 pub fn last_byte_digit(s: &str, separator: u8, eof: u8) -> (u32, __m128i) {
@@ -64,7 +64,6 @@ pub fn parse_integer(s: &str, separator: u8, eol: u8) -> Option<u32> {
     fallback::parse_integer_byte_iterator(s, separator, eol)
 }
 
-
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 unsafe fn parse_integer_avx2(s: &str, separator: u8, eol: u8) -> Option<u32> {
@@ -94,9 +93,7 @@ unsafe fn parse_integer_avx2(s: &str, separator: u8, eol: u8) -> Option<u32> {
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 unsafe fn parse_integer_sse41(s: &str, separator: u8, eol: u8) -> Option<u32> {
-    const VECTOR_SIZE: usize = std::mem::size_of::<__m128i>();
-
-    if s.len() < VECTOR_SIZE {
+    if s.len() < sse41::VECTOR_SIZE {
         return fallback::parse_integer_byte_iterator(s, separator, eol);
     }
     // find the first occurence of a separator

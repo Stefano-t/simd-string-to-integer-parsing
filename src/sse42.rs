@@ -1,6 +1,8 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+pub const VECTOR_SIZE: usize = std::mem::size_of::<__m128i>();
+
 // byte array to determine if a byte array is made of all numbers
 const NUMERIC_RANGE: &[u8; 16] = b"09\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 const NUMERIC_VALUES: &[u8; 16] = b"1234567890\0\0\0\0\0\0";
@@ -17,6 +19,9 @@ unsafe fn dump_m128i(v: __m128i) {
 
 #[target_feature(enable = "sse4.2")]
 pub unsafe fn check_all_chars_are_valid(s: &str) -> bool {
+    if s.len() < VECTOR_SIZE {
+        return crate::fallback::check_all_chars_are_valid(s);
+    }
     let to_cmp = _mm_loadu_si128(s.as_ptr() as *const _);
     let range = _mm_loadu_si128(NUMERIC_RANGE.as_ptr() as *const _);
     let idx = _mm_cmpistri(

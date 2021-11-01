@@ -8,6 +8,9 @@ pub const VECTOR_SIZE: usize = std::mem::size_of::<__m256i>(); // 32
 #[target_feature(enable = "avx2")]
 /// Checks that all the bytes are valid digits
 pub unsafe fn check_all_chars_are_valid(string: &str) -> bool {
+    if string.len() < VECTOR_SIZE {
+        return crate::fallback::check_all_chars_are_valid(string);
+    }
     let value = _mm256_loadu_si256(string.as_ptr() as *const _);
     // the -1 is because we don't have a >= instruction, we only have the >
     let zeros = _mm256_set1_epi8(b'0' as i8 - 1);

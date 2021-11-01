@@ -1,15 +1,17 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+pub const VECTOR_SIZE: usize = std::mem::size_of::<__m128i>();
+
 #[allow(dead_code)]
 #[inline]
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 /// Checks that all the bytes are valid digits
-///
-/// This *assumes* that the string has exactly length 16
-/// and it's padded with zeros if needed.
 pub unsafe fn check_all_chars_are_valid(string: &str) -> bool {
+    if string.len() < VECTOR_SIZE {
+        return crate::fallback::check_all_chars_are_valid(string);
+    }
     // initialize the constants, saddly these cannot be actual constants,
     // because we have to initialize xmm registers, and the System V callin convention (https://wiki.osdev.org/System_V_ABI)
     // requires that the callee should set all the xmm register to zero before returning to the caller.
