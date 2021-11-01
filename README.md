@@ -10,6 +10,10 @@ This library provides a faster implementation to parse an integer from a string.
 
 Since this library internally uses SIMD intrinsics, they are only supported when the input string has length at least equal to 16. In the other cases, the parsing algorithm falls back to an iterative process.
 
+## Supported architectures
+
+The provided implementations require x86_64 architectures. The code determines at runtime the best implementation to choose according to the underlying CPU. To get the performance benefits of this library, at least SSE4.1 instruction set is required. There are also SSE4.2 and AVX2 implementations available.
+
 ## Some benchmarks
 
 The following benchmarks are generated via the `src/bin/bench/main.rs` file, reading the TSC register. Since they heavily depend on the hosting machine, here are the specs of the testing machine:
@@ -40,6 +44,10 @@ Here are the benchmarks:
 - built-in `parse` vs. `parse_integer` without SIMD and without separator: ![std vs parse_integer no SIMD no sep](./img/optional-no-simd-no-sep.png)
 - built-in `parse` vs. `parse_integer` without SIMD but with separator: ![std vs parse_integer no SIMD with sep](./img/optional-no-simd-sep.png)
 - built-in `parse` vs. `parse_integer` SIMD and separator: ![std vs parse_integer with SIMD and sep](./img/optional-simd-sep.png)
+
+## About code safety
+
+Working with CPU intrinsics is `unsafe`. The code should be robust enough to remove any kind of runtime exception or compile time error. To guarantee safety, all the intrinsic calls are surround by `#[cfg]` and `#[target_feature]` directives to compile and call functions only for supported CPUs. For further information and a better explanation, please refer to the Rust documentation https://doc.rust-lang.org/core/arch/index.html.
 
 ## References
 
