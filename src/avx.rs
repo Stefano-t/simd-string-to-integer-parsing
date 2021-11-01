@@ -1,7 +1,7 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[cfg(target_feature = "avx")]
+#[cfg(target_feature = "avx2")]
 pub const VECTOR_SIZE: usize = std::mem::size_of::<__m256i>(); // 32
 
 #[inline]
@@ -78,6 +78,7 @@ unsafe fn propagate(mut v: __m256i, first_byte: u32) -> __m256i {
     // set the 128 higher bits to all 1s only if the mask starts from the lower
     // 128 bits
     if first_byte < (VECTOR_SIZE / 2) as u32 {
+        // -1 is as sequence of all 1s in two's complement
         v = _mm256_or_si256(v, _mm256_set_epi64x(-1, -1, 0, 0));
     }
     v
@@ -99,6 +100,135 @@ unsafe fn dump_m128i(v: __m128i) {
     vdup = _mm_bsrli_si128(vdup, 8);
     let upper = _mm_cvtsi128_si64(vdup);
     println!("64: {:064b}\n64: {:064b}", upper, lower);
+}
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+/// Parses 8 integers from input string using SIMD instructons.
+///
+/// The input string *must have* at least 32 chars, otherwise the internal
+/// operations will load memory outside the string bound.
+pub unsafe fn parse_8_chars_simd(s: &str) -> u32 {
+    let mut chunk = _mm256_loadu_si256(s.as_ptr() as *const _);
+    let zeros = _mm256_set1_epi8(b'0' as i8);
+    chunk = _mm256_sub_epi64(chunk, zeros);
+
+    let mult = _mm256_set_epi8(
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 10, 1, 10, 1,
+        10, 1, 10,
+    );
+    chunk = _mm256_maddubs_epi16(chunk, mult);
+
+    let mult = _mm256_set_epi16(
+        1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100,
+    );
+    chunk = _mm256_madd_epi16(chunk, mult);
+
+    chunk = _mm256_packus_epi32(chunk, chunk);
+    let mult = _mm256_set_epi16(
+        1, 10000, 1, 10000, 1, 10000, 1, 10000, 1, 10000, 1, 10000, 1, 10000, 1, 10000,
+    );
+    chunk = _mm256_madd_epi16(chunk, mult);
+
+    let chunk = _mm256_cvtsi256_si32(chunk) as u32;
+    chunk
+}
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+/// Parses an u32 from a string padded with zeros.
+pub unsafe fn parse_padded_integer_simd_all_numbers(s: &str) -> u32 {
+    let mut chunk = _mm256_loadu_si256(s.as_ptr() as *const _);
+    let zeros = _mm256_set1_epi8(b'0' as i8);
+    chunk = _mm256_sub_epi16(chunk, zeros);
+
+    let mult = _mm256_set_epi8(
+        1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10,
+        1, 10, 1, 10, 1, 10,
+    );
+    chunk = _mm256_maddubs_epi16(chunk, mult);
+
+    let mult = _mm256_set_epi16(
+        1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100,
+    );
+    chunk = _mm256_madd_epi16(chunk, mult);
+
+    chunk = _mm256_packus_epi32(chunk, chunk);
+
+    let mult = _mm256_set_epi16(
+        1, 10000, 1, 10000, 1, 10000, 1, 10000, 1, 10000, 1, 10000, 1, 10000, 1, 10000,
+    );
+    chunk = _mm256_madd_epi16(chunk, mult);
+
+    // the index 3 is used because, since the string is padded with
+    // 0s, the number is located in the 64 rightmost bits
+    let chunk = _mm256_extract_epi64(chunk, 3) as u64;
+    (((chunk & 0xffffffff) * 100000000) + (chunk >> 32)) as u32
+}
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+pub unsafe fn parse_less_than_8_simd(s: &str, scaling_factor: u32, mask: __m256i) -> u32 {
+    let mut chunk = _mm256_loadu_si256(s.as_ptr() as *const _);
+    let zeros = _mm256_set1_epi8(b'0' as i8);
+    chunk = _mm256_sub_epi64(chunk, zeros);
+
+    // remove the unwanted part of the number to not parse
+    chunk = _mm256_andnot_si256(mask, chunk);
+
+    let mult = _mm256_set_epi8(
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 10, 1, 10, 1,
+        10, 1, 10,
+    );
+    chunk = _mm256_maddubs_epi16(chunk, mult);
+
+    let mult = _mm256_set_epi16(
+        1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100,
+    );
+
+    chunk = _mm256_madd_epi16(chunk, mult);
+
+    chunk = _mm256_packus_epi32(chunk, chunk);
+    let mult = _mm256_set_epi16(
+        1, 10000, 1, 10000, 1, 10000, 1, 10000, 1, 10000, 1, 10000, 1, 10000, 1, 10000,
+    );
+    chunk = _mm256_madd_epi16(chunk, mult);
+
+    let chunk = _mm256_cvtsi256_si32(chunk) as u32;
+    chunk / scaling_factor
+}
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+/// Parses an integer of at least 8 digits from the string with SIMD.
+///
+/// This method *assumes* that the input string has exactly 32 chars, eventually
+/// padded with zeros.
+pub unsafe fn parse_more_than_8_simd(s: &str, scaling_factor: u64, mask: __m256i) -> u32 {
+    let mut chunk = _mm256_loadu_si256(s.as_ptr() as *const _);
+    let zeros = _mm256_set1_epi8(b'0' as i8);
+    chunk = _mm256_sub_epi16(chunk, zeros);
+
+    chunk = _mm256_andnot_si256(mask, chunk);
+
+    let mult = _mm256_set_epi8(
+        1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10,
+        1, 10, 1, 10, 1, 10,
+    );
+    chunk = _mm256_maddubs_epi16(chunk, mult);
+
+    let mult = _mm256_set_epi16(
+        1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100, 1, 100,
+    );
+    chunk = _mm256_madd_epi16(chunk, mult);
+
+    chunk = _mm256_packus_epi32(chunk, chunk);
+
+    let mult = _mm256_set_epi16(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 10000, 1, 10000);
+    chunk = _mm256_madd_epi16(chunk, mult);
+    // 0 as second argument means to extract the lowest 64 bits
+    let chunk = _mm256_extract_epi64(chunk, 0) as u64;
+    ((((chunk & 0xffffffff) * 100000000) + (chunk >> 32)) / scaling_factor) as u32
 }
 
 #[cfg(test)]
