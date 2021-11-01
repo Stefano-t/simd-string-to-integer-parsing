@@ -1,7 +1,6 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-#[cfg(target_feature = "avx2")]
 pub const VECTOR_SIZE: usize = std::mem::size_of::<__m256i>(); // 32
 
 #[inline]
@@ -84,11 +83,12 @@ unsafe fn propagate(mut v: __m256i, first_byte: u32) -> __m256i {
     v
 }
 
+#[allow(dead_code)]
 /// Prints an m256i
 unsafe fn dump_m256i(v: __m256i) {
-    let mut vdup = v;
-    let lower = _mm256_extractf128_si256(v, 0);
-    let upper = _mm256_extractf128_si256(v, 1);
+    let vdup = v;
+    let lower = _mm256_extractf128_si256(vdup, 0);
+    let upper = _mm256_extractf128_si256(vdup, 1);
     dump_m128i(upper);
     dump_m128i(lower);
 }
