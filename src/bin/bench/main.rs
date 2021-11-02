@@ -81,6 +81,8 @@
 use std::arch::x86_64::{__rdtscp, _mm_lfence, _mm_mfence, _mm_prefetch, _rdtsc, _MM_HINT_T0};
 
 use simd_parsing::*;
+use std::env;
+use std::process;
 
 // Wrapper function, these are unsafe because the cpu might not have
 // one of the  instruction. If this happens it will crash with
@@ -117,7 +119,7 @@ fn prefetch(p: *const i8) {
 const TRIALS: usize = 2_000_000;
 
 macro_rules! bench {
-    ($data:expr, $trials:expr, $func:expr) => {
+    ($data:expr, $trials:expr, $func:expr, $file:expr) => {
         let mut min = u64::MAX;
         let mut max = 0;
         let mut delta_sum = 0;
@@ -147,10 +149,10 @@ macro_rules! bench {
         let mean = (delta_sum as f64) / (TRIALS as f64);
         let second_moment = (squared_delta_sum as f64) / (TRIALS as f64);
         let variance = second_moment - (mean * mean);
-        print!("{},{},{:.4},{:.4},", min, max, mean, variance.sqrt());
+        write!($file, "{},{},{:.4},{:.4},", min, max, mean, variance.sqrt()).expect("error in writing to file...");
     };
 
-    ($data:expr, $sep:expr, $eol:expr, $trials:expr, $func:expr) => {
+    ($data:expr, $sep:expr, $eol:expr, $trials:expr, $func:expr, $file:expr) => {
         let mut min = u64::MAX;
         let mut max = 0;
         let mut delta_sum = 0;
@@ -180,7 +182,7 @@ macro_rules! bench {
         let mean = (delta_sum as f64) / (TRIALS as f64);
         let second_moment = (squared_delta_sum as f64) / (TRIALS as f64);
         let variance = second_moment - (mean * mean);
-        print!("{},{},{:.4},{:.4},", min, max, mean, variance.sqrt());
+        write!($file, "{},{},{:.4},{:.4},", min, max, mean, variance.sqrt()).expect("error in writing to file...");
     };
 }
 
@@ -205,9 +207,37 @@ pub fn get_hot() -> usize {
     x
 }
 
+fn print_usage() {
+    eprintln!("\n===== USAGE =====");
+    eprintln!("cargo run --bin bench INTRINSIC");
+    eprintln!("  INTRINSIC: sse41    run benchmark for SSE4.1 instruction set");
+    eprintln!("             sse42    run benchmark for SSE4.2 instruction set");
+    eprintln!("             avx2     run benchmark for AVX2 instruction set");
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+use std::fs;
+use std::io::{self, Write};
+
 fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 2 {
+        print_usage();
+        eprintln!("Error: not enough arguments. Specify one of [sse41, sse42, avx2] to bench the program.");
+        process::exit(1);
+    }
+    let isa = &args[1].to_lowercase();
+    println!("arg: {}", isa);
+    let file_handler = fs::OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .create(true)
+        .open(format!("{}.csv", isa));
+    let mut file: Box<dyn Write> = match file_handler {
+        Ok(f) => Box::new(f),
+        Err(_) => Box::new(io::stdout()),
+    };
     // pin to a core to try to avoid that that the scheduler
     // move us to another core, potentially during a measurement
     // set this to a relatively free core
@@ -216,31 +246,31 @@ fn main() {
     // other processes from this core.
     get_hot();
 
-    print!("len,");
-    print!(
+    file.write(b"len,").expect("error in writing to file...");
+    write!(file,
         "{func_name}_min,{func_name}_max,{func_name}_mean,{func_name}_std,",
         func_name = "std"
-    );
-    print!(
+    ).expect("error in writing to file...");
+    write!(file,
         "{func_name}_min,{func_name}_max,{func_name}_mean,{func_name}_std,",
         func_name = "parse_integer_no_simd"
-    );
-    print!(
+    ).expect("error in writing to file...");
+    write!(file,
         "{func_name}_min,{func_name}_max,{func_name}_mean,{func_name}_std,",
         func_name = "std_delimeter"
-    );
-    print!(
+    ).expect("error in writing to file...");
+    write!(file,
         "{func_name}_min,{func_name}_max,{func_name}_mean,{func_name}_std,",
         func_name = "parse_integer_no_simd_delimeter"
-    );
-    print!(
+    ).expect("error in writing to file...");
+    write!(file,
         "{func_name}_min,{func_name}_max,{func_name}_mean,{func_name}_std,",
         func_name = "parse_integer_simd_delimeter"
-    );
-    print!("\n");
+    ).expect("error in writing to file...");
+    file.write(b"\n").expect("error in writing to file...");
 
     for l in 1..11 {
-        bench_len(l);
+        bench_len(l, &mut file);
     }
 }
 
@@ -254,22 +284,22 @@ fn std_delimeter_test(number: &str) -> u32 {
     to_parse.parse().unwrap()
 }
 
-fn bench_len(l: usize) {
-    print!("{},", l);
+fn bench_len(l: usize, file: &mut dyn Write) {
+    write!(file, "{},", l).expect("error in writing to file...");
     // generate a number to parse
     let number_to_parse = (0..l).map(|_| "1").collect::<Vec<_>>().join("");
-    bench!(number_to_parse.as_str(), TRIALS, std_test);
-    bench!(&number_to_parse, b',', b'\n', TRIALS, parse_integer);
+    bench!(number_to_parse.as_str(), TRIALS, std_test, file);
+    bench!(&number_to_parse, b',', b'\n', TRIALS, parse_integer, file);
     // generate a number of 15 digits with a comma. In this way, no SIMD is used
     let mut vec = (0..15).map(|_| "1").collect::<Vec<_>>();
     vec[l] = ",";
     let number_to_parse = vec.join("");
-    bench!(&number_to_parse, TRIALS, std_delimeter_test);
-    bench!(&number_to_parse, b',', b'\n', TRIALS, parse_integer);
+    bench!(&number_to_parse, TRIALS, std_delimeter_test, file);
+    bench!(&number_to_parse, b',', b'\n', TRIALS, parse_integer, file);
     // generate a 16 chars string to use SIMD and place a comma
     let mut vec = (0..16).map(|_| "1").collect::<Vec<_>>();
     vec[l] = ",";
     let number_to_parse = vec.join("");
-    bench!(&number_to_parse, b',', b'\n', TRIALS, parse_integer);
-    print!("\n");
+    bench!(&number_to_parse, b',', b'\n', TRIALS, parse_integer, file);
+    file.write(b"\n").expect("error in writing to file...");
 }
