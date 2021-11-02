@@ -66,7 +66,7 @@ pub fn parse_integer(s: &str, separator: u8, eol: u8) -> Option<u32> {
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-unsafe fn parse_integer_avx2(s: &str, separator: u8, eol: u8) -> Option<u32> {
+pub unsafe fn parse_integer_avx2(s: &str, separator: u8, eol: u8) -> Option<u32> {
     if s.len() < avx::VECTOR_SIZE {
         return fallback::parse_integer_byte_iterator(s, separator, eol);
     }
@@ -92,7 +92,7 @@ unsafe fn parse_integer_avx2(s: &str, separator: u8, eol: u8) -> Option<u32> {
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-unsafe fn parse_integer_sse41(s: &str, separator: u8, eol: u8) -> Option<u32> {
+pub unsafe fn parse_integer_sse41(s: &str, separator: u8, eol: u8) -> Option<u32> {
     if s.len() < sse41::VECTOR_SIZE {
         return fallback::parse_integer_byte_iterator(s, separator, eol);
     }

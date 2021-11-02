@@ -228,7 +228,13 @@ fn main() {
         process::exit(1);
     }
     let isa = &args[1].to_lowercase();
-    println!("arg: {}", isa);
+
+    if isa != "sse41" && isa != "sse42" && isa != "avx2" {
+        print_usage();
+        eprintln!("Unkwnow input paramter");
+        process::exit(1);
+    }
+    
     let file_handler = fs::OpenOptions::new()
         .write(true)
         .truncate(true)
@@ -248,29 +254,89 @@ fn main() {
 
     file.write(b"len,").expect("error in writing to file...");
     write!(file,
-        "{func_name}_min,{func_name}_max,{func_name}_mean,{func_name}_std,",
-        func_name = "std"
+           "{func_name}_min,{func_name}_max,{func_name}_mean,{func_name}_std,",
+           func_name = "std"
     ).expect("error in writing to file...");
     write!(file,
-        "{func_name}_min,{func_name}_max,{func_name}_mean,{func_name}_std,",
-        func_name = "parse_integer_no_simd"
+           "{func_name}_min,{func_name}_max,{func_name}_mean,{func_name}_std,",
+           func_name = "parse_integer_no_simd"
     ).expect("error in writing to file...");
     write!(file,
-        "{func_name}_min,{func_name}_max,{func_name}_mean,{func_name}_std,",
-        func_name = "std_delimeter"
+           "{func_name}_min,{func_name}_max,{func_name}_mean,{func_name}_std,",
+           func_name = "std_delimeter"
     ).expect("error in writing to file...");
     write!(file,
-        "{func_name}_min,{func_name}_max,{func_name}_mean,{func_name}_std,",
-        func_name = "parse_integer_no_simd_delimeter"
+           "{func_name}_min,{func_name}_max,{func_name}_mean,{func_name}_std,",
+           func_name = "parse_integer_no_simd_delimeter"
     ).expect("error in writing to file...");
     write!(file,
-        "{func_name}_min,{func_name}_max,{func_name}_mean,{func_name}_std,",
-        func_name = "parse_integer_simd_delimeter"
+           "{func_name}_min,{func_name}_max,{func_name}_mean,{func_name}_std,",
+           func_name = "parse_integer_simd_delimeter"
     ).expect("error in writing to file...");
     file.write(b"\n").expect("error in writing to file...");
 
-    for l in 1..11 {
-        bench_len(l, &mut file);
+    if isa == "sse41" {
+        bench_sse41(10, &mut file);
+    } else if isa == "sse42" {
+        bench_sse42(10, &mut file);
+    } else { // avx2 branch
+        bench_avx2(10, &mut file);
+    }
+}
+
+fn safe_parse_integer_sse41(s: &str, separator: u8, eol: u8) -> Option<u32> {
+    unsafe { return parse_integer_sse41(s, separator, eol); }
+}
+
+fn safe_parse_integer_avx2(s: &str, separator: u8, eol: u8) -> Option<u32> {
+    unsafe { return parse_integer_avx2(s, separator, eol); }
+}
+
+fn bench_sse41(times: usize, file: &mut dyn Write) {
+    for l in 1..=times {
+        write!(file, "{},", l).expect("error in writing to file...");
+        // generate a number to parse
+        let number_to_parse = (0..l).map(|_| "1").collect::<Vec<_>>().join("");
+        bench!(number_to_parse.as_str(), TRIALS, std_test, file);
+        bench!(&number_to_parse, b',', b'\n', TRIALS, safe_parse_integer_sse41, file);
+        // generate a number of 15 digits with a comma. In this way, no SIMD is used
+        let mut vec = (0..15).map(|_| "1").collect::<Vec<_>>();
+        vec[l] = ",";
+        let number_to_parse = vec.join("");
+        bench!(&number_to_parse, TRIALS, std_delimeter_test, file);
+        bench!(&number_to_parse, b',', b'\n', TRIALS, safe_parse_integer_sse41, file);
+        // generate a 16 chars string to use SIMD and place a comma
+        let mut vec = (0..16).map(|_| "1").collect::<Vec<_>>();
+        vec[l] = ",";
+        let number_to_parse = vec.join("");
+        bench!(&number_to_parse, b',', b'\n', TRIALS, safe_parse_integer_sse41, file);
+        file.write(b"\n").expect("error in writing to file...");
+    }
+}
+
+fn bench_sse42(times: usize, file: &mut dyn Write) {
+    panic!("not implemented");
+}
+
+fn bench_avx2(times: usize, file: &mut dyn Write) {
+    for l in 1..=times {
+        write!(file, "{},", l).expect("error in writing to file...");
+        // generate a number to parse
+        let number_to_parse = (0..l).map(|_| "1").collect::<Vec<_>>().join("");
+        bench!(number_to_parse.as_str(), TRIALS, std_test, file);
+        bench!(&number_to_parse, b',', b'\n', TRIALS, safe_parse_integer_avx2, file);
+        // generate a number of 31 digits with a comma. In this way, no SIMD is used
+        let mut vec = (0..31).map(|_| "1").collect::<Vec<_>>();
+        vec[l] = ",";
+        let number_to_parse = vec.join("");
+        bench!(&number_to_parse, TRIALS, std_delimeter_test, file);
+        bench!(&number_to_parse, b',', b'\n', TRIALS, safe_parse_integer_avx2, file);
+        // generate a 32 chars string to use SIMD and place a comma
+        let mut vec = (0..32).map(|_| "1").collect::<Vec<_>>();
+        vec[l] = ",";
+        let number_to_parse = vec.join("");
+        bench!(&number_to_parse, b',', b'\n', TRIALS, safe_parse_integer_avx2, file);
+        file.write(b"\n").expect("error in writing to file...");
     }
 }
 
