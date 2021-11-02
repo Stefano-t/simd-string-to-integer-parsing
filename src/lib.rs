@@ -66,7 +66,7 @@ pub fn parse_integer(s: &str, separator: u8, eol: u8) -> Option<u32> {
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-pub unsafe fn parse_integer_avx2(s: &str, separator: u8, eol: u8) -> Option<u32> {
+unsafe fn parse_integer_avx2(s: &str, separator: u8, eol: u8) -> Option<u32> {
     if s.len() < avx::VECTOR_SIZE {
         return fallback::parse_integer_byte_iterator(s, separator, eol);
     }
@@ -92,7 +92,7 @@ pub unsafe fn parse_integer_avx2(s: &str, separator: u8, eol: u8) -> Option<u32>
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-pub unsafe fn parse_integer_sse41(s: &str, separator: u8, eol: u8) -> Option<u32> {
+unsafe fn parse_integer_sse41(s: &str, separator: u8, eol: u8) -> Option<u32> {
     if s.len() < sse41::VECTOR_SIZE {
         return fallback::parse_integer_byte_iterator(s, separator, eol);
     }
@@ -111,5 +111,51 @@ pub unsafe fn parse_integer_sse41(s: &str, separator: u8, eol: u8) -> Option<u32
         32 => return Some(sse41::parse_integer_simd_all_numbers(s)),
         // there is no u32 to parse
         _ => return None,
+    }
+}
+
+#[cfg(feature = "benchmark")]
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "sse4.2")]
+unsafe fn parse_integer_sse42(s: &str, separator: u8, eol: u8) -> Option<u32> {
+    if s.len() < sse41::VECTOR_SIZE {
+        return fallback::parse_integer_byte_iterator(s, separator, eol);
+    }
+    // find the first occurence of a separator
+    let (index, mask) = sse42::last_byte_digit(s, separator, eol);
+    match index {
+        8 => return Some(sse41::parse_8_chars_simd(s)),
+        10 => return Some(sse41::parse_more_than_8_simd(s, 1000000, mask)),
+        9 => return Some(sse41::parse_more_than_8_simd(s, 10000000, mask)),
+        7 => return Some(sse41::parse_less_than_8_simd(s, 10, mask)),
+        6 => return Some(sse41::parse_less_than_8_simd(s, 100, mask)),
+        5 => return Some(sse41::parse_less_than_8_simd(s, 1000, mask)),
+        4 => return Some(sse41::parse_less_than_8_simd(s, 10000, mask)),
+        1..=3 => return Some(fallback::parse_byte_iterator_limited(s, index)),
+        // all the chars are numeric, maybe padded?
+        32 => return Some(sse41::parse_integer_simd_all_numbers(s)),
+        // there is no u32 to parse
+        _ => return None,
+    }
+}
+
+#[cfg(feature = "benchmark")]
+pub fn safe_parse_integer_sse41(s: &str, separator: u8, eol: u8) -> Option<u32> {
+    unsafe {
+        return parse_integer_sse41(s, separator, eol);
+    }
+}
+
+#[cfg(feature = "benchmark")]
+pub fn safe_parse_integer_sse42(s: &str, separator: u8, eol: u8) -> Option<u32> {
+    unsafe {
+        return parse_integer_sse42(s, separator, eol);
+    }
+}
+
+#[cfg(feature = "benchmark")]
+pub fn safe_parse_integer_avx2(s: &str, separator: u8, eol: u8) -> Option<u32> {
+    unsafe {
+        return parse_integer_avx2(s, separator, eol);
     }
 }
