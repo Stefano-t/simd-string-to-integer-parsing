@@ -135,52 +135,130 @@ pub unsafe fn parse_integer_simd_all_numbers(s: &str) -> u32 {
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-pub unsafe fn parse_less_than_8_simd(s: &str, scaling_factor: u32, mask: __m128i) -> u32 {
-    let mut chunk = _mm_lddqu_si128(s.as_ptr() as *const _);
+pub unsafe fn parse_5_chars_simd(s: &str) -> u32 {
+    let mut chunk = _mm_loadu_si128(s.as_ptr() as *const _);
     let zeros = _mm_set1_epi8(b'0' as i8);
     chunk = _mm_sub_epi16(chunk, zeros);
 
-    // remove the unwanted part of the number to not parse
-    chunk = _mm_andnot_si128(mask, chunk);
-
-    let mult = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 1, 10, 1, 10, 1, 10, 1, 10);
+    let mult = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 10, 1, 10);
     chunk = _mm_maddubs_epi16(chunk, mult);
-
-    let mult = _mm_set_epi16(1, 100, 1, 100, 1, 100, 1, 100);
+    // make first two 16 bit chunks a 4 digit number, while leaving the next 16
+    // bits untouched
+    let mult = _mm_set_epi16(0, 0, 0, 0, 0, 1, 1, 100);
     chunk = _mm_madd_epi16(chunk, mult);
 
     chunk = _mm_packus_epi32(chunk, chunk);
-    let mult = _mm_set_epi16(1, 10000, 1, 10000, 1, 10000, 1, 10000);
+    // make room for the 1 digit number and sum them up
+    let mult = _mm_set_epi16(0, 0, 0, 0, 0, 0, 1, 10);
     chunk = _mm_madd_epi16(chunk, mult);
 
-    let chunk = _mm_cvtsi128_si32(chunk) as u32;
-    chunk / scaling_factor
+    _mm_cvtsi128_si32(chunk) as u32
 }
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-/// Parses an integer of at least 8 digits from the string with SIMD.
-///
-/// This method *assumes* that the input string has exactly 16 chars, eventually
-/// padded with zeros.
-pub unsafe fn parse_more_than_8_simd(s: &str, scaling_factor: u64, mask: __m128i) -> u32 {
-    let mut chunk = _mm_lddqu_si128(std::mem::transmute_copy(&s));
+pub unsafe fn parse_4_chars_simd(s: &str) -> u32 {
+    let mut chunk = _mm_loadu_si128(s.as_ptr() as *const _);
     let zeros = _mm_set1_epi8(b'0' as i8);
     chunk = _mm_sub_epi16(chunk, zeros);
 
-    chunk = _mm_andnot_si128(mask, chunk);
-
-    let mult = _mm_set_epi8(1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10);
+    let mult = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 10, 1, 10);
     chunk = _mm_maddubs_epi16(chunk, mult);
+    // make first two 16 bit chunks a 4 digit number, while leaving the next 16
+    // bits untouched
+    let mult = _mm_set_epi16(0, 0, 0, 0, 0, 0, 1, 100);
+    chunk = _mm_madd_epi16(chunk, mult);
+    _mm_cvtsi128_si32(chunk) as u32
+}
 
-    let mult = _mm_set_epi16(1, 100, 1, 100, 1, 100, 1, 100);
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "sse4.1")]
+pub unsafe fn parse_6_chars_simd(s: &str) -> u32 {
+    let mut chunk = _mm_loadu_si128(s.as_ptr() as *const _);
+    let zeros = _mm_set1_epi8(b'0' as i8);
+    chunk = _mm_sub_epi16(chunk, zeros);
+
+    let mult = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 10, 1, 10, 1, 10);
+    chunk = _mm_maddubs_epi16(chunk, mult);
+    // make first two 16 bit chunks a 4 digit number, while leaving the next 16
+    // bits untouched
+    let mult = _mm_set_epi16(0, 0, 0, 0, 0, 1, 1, 100);
     chunk = _mm_madd_epi16(chunk, mult);
 
     chunk = _mm_packus_epi32(chunk, chunk);
-
-    let mult = _mm_set_epi16(0, 0, 0, 0, 1, 10000, 1, 10000);
+    // make room for the 2 digit number and sum them up
+    let mult = _mm_set_epi16(0, 0, 0, 0, 0, 0, 1, 100);
     chunk = _mm_madd_epi16(chunk, mult);
 
+    _mm_cvtsi128_si32(chunk) as u32
+}
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "sse4.1")]
+pub unsafe fn parse_7_chars_simd(s: &str) -> u32 {
+    let mut chunk = _mm_loadu_si128(s.as_ptr() as *const _);
+    let zeros = _mm_set1_epi8(b'0' as i8);
+    chunk = _mm_sub_epi16(chunk, zeros);
+
+    let mult = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 10, 1, 10, 1, 10);
+    chunk = _mm_maddubs_epi16(chunk, mult);
+    // make first two 16 bit chunks a 4 digit number, while leaving the next 16
+    // bits untouched
+    let mult = _mm_set_epi16(0, 0, 0, 0, 1, 10, 1, 100);
+    chunk = _mm_madd_epi16(chunk, mult);
+
+    chunk = _mm_packus_epi32(chunk, chunk);
+    // make room for the 3 digit number and sum them up
+    let mult = _mm_set_epi16(0, 0, 0, 0, 0, 0, 1, 1000);
+    chunk = _mm_madd_epi16(chunk, mult);
+
+    _mm_cvtsi128_si32(chunk) as u32
+}
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "sse4.1")]
+pub unsafe fn parse_9_chars_simd(s: &str) -> u32 {
+    let mut chunk = _mm_loadu_si128(s.as_ptr() as *const _);
+    let zeros = _mm_set1_epi8(b'0' as i8);
+    chunk = _mm_sub_epi16(chunk, zeros);
+
+    // in all the below `_mm_set_epi8` operations, the first 1 starting from
+    // left ensures that the last digit among the 9 is untouched
+    let mult = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 1, 1, 10, 1, 10, 1, 10, 1, 10);
+    let chunk = _mm_maddubs_epi16(chunk, mult);
+
+    let mult = _mm_set_epi16(0, 0, 0, 1, 1, 100, 1, 100);
+    let chunk = _mm_madd_epi16(chunk, mult);
+
+    let chunk = _mm_packus_epi32(chunk, chunk);
+    let mult = _mm_set_epi16(0, 0, 0, 0, 0, 1, 1, 10000);
+    let chunk = _mm_madd_epi16(chunk, mult);
+
     let chunk = _mm_cvtsi128_si64(chunk) as u64;
-    ((((chunk & 0xffffffff) * 100000000) + (chunk >> 32)) / scaling_factor) as u32
+    // make room to place the remeaning digit
+    (((chunk & 0x00000000ffffffff) * 10) + (chunk >> 32)) as u32
+}
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "sse4.1")]
+pub unsafe fn parse_10_chars_simd(s: &str) -> u32 {
+    let mut chunk = _mm_loadu_si128(s.as_ptr() as *const _);
+    let zeros = _mm_set1_epi8(b'0' as i8);
+    chunk = _mm_sub_epi16(chunk, zeros);
+
+    let mult = _mm_set_epi8(0, 0, 0, 0, 0, 0, 1, 10, 1, 10, 1, 10, 1, 10, 1, 10);
+    let chunk = _mm_maddubs_epi16(chunk, mult);
+
+    // in all the below `_mm_set_epi8` operations, the first 1 starting from
+    // left ensures that the last digit among the 9 is untouched
+    let mult = _mm_set_epi16(0, 0, 0, 1, 1, 100, 1, 100);
+    let chunk = _mm_madd_epi16(chunk, mult);
+
+    let chunk = _mm_packus_epi32(chunk, chunk);
+    let mult = _mm_set_epi16(0, 0, 0, 0, 0, 1, 1, 10000);
+    let chunk = _mm_madd_epi16(chunk, mult);
+
+    let chunk = _mm_cvtsi128_si64(chunk) as u64;
+    // make room to place the 2 remeaning digits
+    (((chunk & 0x00000000ffffffff) * 100) + (chunk >> 32)) as u32
 }

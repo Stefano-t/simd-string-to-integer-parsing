@@ -97,15 +97,15 @@ unsafe fn parse_integer_sse41(s: &str, separator: u8, eol: u8) -> Option<u32> {
         return fallback::parse_integer_byte_iterator(s, separator, eol);
     }
     // find the first occurence of a separator
-    let (index, mask) = last_byte_digit(s, separator, eol);
+    let (index, _mask) = last_byte_digit(s, separator, eol);
     match index {
         8 => return Some(sse41::parse_8_chars_simd(s)),
-        10 => return Some(sse41::parse_more_than_8_simd(s, 1000000, mask)),
-        9 => return Some(sse41::parse_more_than_8_simd(s, 10000000, mask)),
-        7 => return Some(sse41::parse_less_than_8_simd(s, 10, mask)),
-        6 => return Some(sse41::parse_less_than_8_simd(s, 100, mask)),
-        5 => return Some(sse41::parse_less_than_8_simd(s, 1000, mask)),
-        4 => return Some(sse41::parse_less_than_8_simd(s, 10000, mask)),
+        10 => return Some(sse41::parse_10_chars_simd(s)),
+        9 => return Some(sse41::parse_9_chars_simd(s)),
+        7 => return Some(sse41::parse_7_chars_simd(s)),
+        6 => return Some(sse41::parse_6_chars_simd(s)),
+        5 => return Some(sse41::parse_5_chars_simd(s)),
+        4 => return Some(sse41::parse_4_chars_simd(s)),
         1..=3 => return Some(fallback::parse_byte_iterator_limited(s, index)),
         // all the chars are numeric, maybe padded?
         32 => return Some(sse41::parse_integer_simd_all_numbers(s)),
@@ -122,15 +122,15 @@ unsafe fn parse_integer_sse42(s: &str, separator: u8, eol: u8) -> Option<u32> {
         return fallback::parse_integer_byte_iterator(s, separator, eol);
     }
     // find the first occurence of a separator
-    let (index, mask) = sse42::last_byte_digit(s, separator, eol);
+    let (index, _mask) = sse42::last_byte_digit(s, separator, eol);
     match index {
         8 => return Some(sse41::parse_8_chars_simd(s)),
-        10 => return Some(sse41::parse_more_than_8_simd(s, 1000000, mask)),
-        9 => return Some(sse41::parse_more_than_8_simd(s, 10000000, mask)),
-        7 => return Some(sse41::parse_less_than_8_simd(s, 10, mask)),
-        6 => return Some(sse41::parse_less_than_8_simd(s, 100, mask)),
-        5 => return Some(sse41::parse_less_than_8_simd(s, 1000, mask)),
-        4 => return Some(sse41::parse_less_than_8_simd(s, 10000, mask)),
+        10 => return Some(sse41::parse_10_chars_simd(s)),
+        9 => return Some(sse41::parse_9_chars_simd(s)),
+        7 => return Some(sse41::parse_7_chars_simd(s)),
+        6 => return Some(sse41::parse_6_chars_simd(s)),
+        5 => return Some(sse41::parse_5_chars_simd(s)),
+        4 => return Some(sse41::parse_4_chars_simd(s)),
         1..=3 => return Some(fallback::parse_byte_iterator_limited(s, index)),
         // all the chars are numeric, maybe padded?
         32 => return Some(sse41::parse_integer_simd_all_numbers(s)),
