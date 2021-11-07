@@ -63,6 +63,127 @@ pub unsafe fn last_byte_digit(string: &str, separator: u8, eol: u8) -> (u32, __m
     (idx, mask)
 }
 
+pub unsafe fn parse_10_chars_simd(s: &str) -> u32 {
+    let mut chunk = _mm256_loadu_si256(s.as_ptr() as *const _);
+    let zeros = _mm256_set1_epi8(b'0' as i8);
+    chunk = _mm256_sub_epi8(chunk, zeros);
+
+    let mult = _mm256_set_epi8(
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 10, 1, 10, 1, 10, 1,
+        10, 1, 10,
+    );
+    chunk = _mm256_maddubs_epi16(chunk, mult);
+
+    let mult = _mm256_set_epi16(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 100, 1, 100);
+    chunk = _mm256_madd_epi16(chunk, mult);
+
+    chunk = _mm256_packus_epi32(chunk, chunk);
+    let mult = _mm256_set_epi16(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 10000);
+    chunk = _mm256_madd_epi16(chunk, mult);
+    let chunk = _mm256_extract_epi64(chunk, 0) as u64;
+    (((chunk & 0x00000000ffffffff) * 100) + (chunk >> 32)) as u32
+}
+
+pub unsafe fn parse_9_chars_simd(s: &str) -> u32 {
+    let mut chunk = _mm256_loadu_si256(s.as_ptr() as *const _);
+    let zeros = _mm256_set1_epi8(b'0' as i8);
+    chunk = _mm256_sub_epi8(chunk, zeros);
+
+    let mult = _mm256_set_epi8(
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 10, 1, 10, 1,
+        10, 1, 10,
+    );
+    chunk = _mm256_maddubs_epi16(chunk, mult);
+
+    let mult = _mm256_set_epi16(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 100, 1, 100);
+    chunk = _mm256_madd_epi16(chunk, mult);
+
+    chunk = _mm256_packus_epi32(chunk, chunk);
+    let mult = _mm256_set_epi16(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 10000);
+    chunk = _mm256_madd_epi16(chunk, mult);
+    let chunk = _mm256_extract_epi64(chunk, 0) as u64;
+    (((chunk & 0x00000000ffffffff) * 10) + (chunk >> 32)) as u32
+}
+
+pub unsafe fn parse_7_chars_simd(s: &str) -> u32 {
+    let mut chunk = _mm256_loadu_si256(s.as_ptr() as *const _);
+    let zeros = _mm256_set1_epi8(b'0' as i8);
+    chunk = _mm256_sub_epi8(chunk, zeros);
+
+    let mult = _mm256_set_epi8(
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 10, 1, 10,
+        1, 10,
+    );
+    chunk = _mm256_maddubs_epi16(chunk, mult);
+
+    let mult = _mm256_set_epi16(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 10, 1, 100);
+    chunk = _mm256_madd_epi16(chunk, mult);
+
+    chunk = _mm256_packus_epi32(chunk, chunk);
+    let mult = _mm256_set_epi16(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1000);
+    chunk = _mm256_madd_epi16(chunk, mult);
+
+    _mm256_cvtsi256_si32(chunk) as u32
+}
+
+pub unsafe fn parse_6_chars_simd(s: &str) -> u32 {
+    let mut chunk = _mm256_loadu_si256(s.as_ptr() as *const _);
+    let zeros = _mm256_set1_epi8(b'0' as i8);
+    chunk = _mm256_sub_epi8(chunk, zeros);
+
+    let mult = _mm256_set_epi8(
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 10, 1, 10,
+        1, 10,
+    );
+    chunk = _mm256_maddubs_epi16(chunk, mult);
+
+    let mult = _mm256_set_epi16(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 100);
+    chunk = _mm256_madd_epi16(chunk, mult);
+
+    chunk = _mm256_packus_epi32(chunk, chunk);
+    let mult = _mm256_set_epi16(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 100);
+    chunk = _mm256_madd_epi16(chunk, mult);
+
+    _mm256_cvtsi256_si32(chunk) as u32
+}
+
+pub unsafe fn parse_5_chars_simd(s: &str) -> u32 {
+    let mut chunk = _mm256_loadu_si256(s.as_ptr() as *const _);
+    let zeros = _mm256_set1_epi8(b'0' as i8);
+    chunk = _mm256_sub_epi8(chunk, zeros);
+
+    let mult = _mm256_set_epi8(
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 10,
+        1, 10,
+    );
+    chunk = _mm256_maddubs_epi16(chunk, mult);
+
+    let mult = _mm256_set_epi16(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 100);
+    chunk = _mm256_madd_epi16(chunk, mult);
+
+    chunk = _mm256_packus_epi32(chunk, chunk);
+    let mult = _mm256_set_epi16(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 10);
+    chunk = _mm256_madd_epi16(chunk, mult);
+
+    _mm256_cvtsi256_si32(chunk) as u32
+}
+
+pub unsafe fn parse_4_chars_simd(s: &str) -> u32 {
+    let mut chunk = _mm256_loadu_si256(s.as_ptr() as *const _);
+    let zeros = _mm256_set1_epi8(b'0' as i8);
+    chunk = _mm256_sub_epi8(chunk, zeros);
+
+    let mult = _mm256_set_epi8(
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 10,
+        1, 10,
+    );
+    chunk = _mm256_maddubs_epi16(chunk, mult);
+
+    let mult = _mm256_set_epi16(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 100);
+    chunk = _mm256_madd_epi16(chunk, mult);
+    _mm256_cvtsi256_si32(chunk) as u32
+}
+
 #[inline]
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
@@ -250,7 +371,90 @@ mod tests {
     fn test_check_numbers_all_valid_when_false() {
         let s = "1111111=111111111111111111111111";
         unsafe {
-            assert!(check_all_chars_are_valid(s));
+            assert!(!check_all_chars_are_valid(s));
+        }
+    }
+
+    #[test]
+    fn test_last_byte_digit_below_10() {
+        let s = "1111111,111111111111111111111111";
+        unsafe {
+            let (last, _) = last_byte_digit(s, b',', b'\n');
+            assert_eq!(last, 7);
+        }
+    }
+
+    #[test]
+    fn test_last_byte_digit_no_sep() {
+        let s = "11111111111111111111111111111111";
+        unsafe {
+            let (last, _) = last_byte_digit(s, b',', b'\n');
+            assert_eq!(last, 32);
+        }
+    }
+
+    #[test]
+    fn test_last_byte_digit_multiple_sep() {
+        let s = "11111,1111\n111111111111111111111";
+        unsafe {
+            let (last, _) = last_byte_digit(s, b',', b'\n');
+            assert_eq!(last, 5);
+        }
+    }
+
+    #[test]
+    fn test_parse_10_chars_simd() {
+        let s = "12345678911111111111111111111111";
+        unsafe {
+            assert_eq!(parse_10_chars_simd(s), 1234567891);
+        }
+    }
+
+    #[test]
+    fn test_parse_9_chars_simd() {
+        let s = "12345678911111111111111111111111";
+        unsafe {
+            assert_eq!(parse_9_chars_simd(s), 123456789);
+        }
+    }
+
+    #[test]
+    fn test_parse_8_chars_simd() {
+        let s = "12345678111111111111111111111111";
+        unsafe {
+            assert_eq!(parse_8_chars_simd(s), 12345678);
+        }
+    }
+
+    #[test]
+    fn test_parse_7_chars_simd() {
+        let s = "12345678111111111111111111111111";
+        unsafe {
+            assert_eq!(parse_7_chars_simd(s), 1234567);
+        }
+    }
+
+    #[test]
+    fn test_parse_6_chars_simd() {
+        let s = "12345678111111111111111111111111";
+        unsafe {
+            assert_eq!(parse_6_chars_simd(s), 123456);
+        }
+    }
+
+    #[test]
+    fn test_parse_5_chars_simd() {
+        let s = "12345678111111111111111111111111";
+        unsafe {
+            assert_eq!(parse_5_chars_simd(s), 12345);
+        }
+    }
+
+    #[test]
+    fn test_parse_4_chars_simd() {
+        let s = "12345678111111111111111111111111";
+        unsafe {
+            assert_eq!(parse_4_chars_simd(s), 1234);
         }
     }
 }

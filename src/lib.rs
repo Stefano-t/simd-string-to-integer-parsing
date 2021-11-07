@@ -71,15 +71,15 @@ unsafe fn parse_integer_avx2(s: &str, separator: u8, eol: u8) -> Option<u32> {
         return fallback::parse_integer_byte_iterator(s, separator, eol);
     }
     // find the first occurence of a separator
-    let (index, mask) = avx::last_byte_digit(s, separator, eol);
+    let (index, _mask) = avx::last_byte_digit(s, separator, eol);
     match index {
         8 => return Some(avx::parse_8_chars_simd(s)),
-        10 => return Some(avx::parse_more_than_8_simd(s, 1000000, mask)),
-        9 => return Some(avx::parse_more_than_8_simd(s, 10000000, mask)),
-        7 => return Some(avx::parse_less_than_8_simd(s, 10, mask)),
-        6 => return Some(avx::parse_less_than_8_simd(s, 100, mask)),
-        5 => return Some(avx::parse_less_than_8_simd(s, 1000, mask)),
-        4 => return Some(avx::parse_less_than_8_simd(s, 10000, mask)),
+        10 => return Some(avx::parse_10_chars_simd(s)),
+        9 => return Some(avx::parse_9_chars_simd(s)),
+        7 => return Some(avx::parse_7_chars_simd(s)),
+        6 => return Some(avx::parse_6_chars_simd(s)),
+        5 => return Some(avx::parse_5_chars_simd(s)),
+        4 => return Some(avx::parse_4_chars_simd(s)),
         1..=3 => return Some(fallback::parse_byte_iterator_limited(s, index)),
         // all the chars are numeric, and they should be padded with 0s to get a
         // correct result. If not, the parsed number will not be correct due to
