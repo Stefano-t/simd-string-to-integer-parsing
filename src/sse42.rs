@@ -33,7 +33,7 @@ pub unsafe fn check_all_chars_are_valid(s: &str) -> bool {
 }
 
 #[target_feature(enable = "sse4.2")]
-pub unsafe fn last_byte_digit(s: &str, _separator: u8, _eol: u8) -> (u32, __m128i) {
+pub unsafe fn last_byte_digit(s: &str, _separator: u8, _eol: u8) -> u32 {
     // ignore `separator` and `eol`, since function `_mm_cmpistrm` can
     // compare automatically all numeric values and decect when they are not
     let to_cmp = _mm_loadu_si128(s.as_ptr() as *const _);
@@ -46,15 +46,5 @@ pub unsafe fn last_byte_digit(s: &str, _separator: u8, _eol: u8) -> (u32, __m128
     );
     // translate the mask into an integer
     let idx = _mm_movemask_epi8(mask);
-    (idx.trailing_zeros(), propagate(mask))
-}
-
-#[inline]
-/// Propagates the input mask to the left.
-unsafe fn propagate(mut v: __m128i) -> __m128i {
-    v = _mm_or_si128(v, _mm_slli_si128(v as _, 1) as _);
-    v = _mm_or_si128(v, _mm_slli_si128(v as _, 2) as _);
-    v = _mm_or_si128(v, _mm_slli_si128(v as _, 4) as _);
-    v = _mm_or_si128(v, _mm_slli_si128(v as _, 8) as _);
-    v
+    idx.trailing_zeros()
 }

@@ -28,7 +28,7 @@ fn bench_check_chars_validity_invalid(b: &mut Bencher) {
 fn bench_last_byte_digit_no_separator(b: &mut Bencher) {
     let case = "0000001234567890";
     b.bytes = case.len() as u64;
-    let (index, _) = last_byte_digit(&case, b',', b'\n');
+    let index = last_byte_digit(&case, b',', b'\n');
     assert_eq!(index, 32);
     b.iter(|| last_byte_digit(black_box(&case), b',', b'\n'))
 }
@@ -37,7 +37,7 @@ fn bench_last_byte_digit_no_separator(b: &mut Bencher) {
 fn bench_last_byte_digit_one_separator(b: &mut Bencher) {
     let case = "00000,1234567890";
     b.bytes = case.len() as u64;
-    let (index, _) = last_byte_digit(&case, b',', b'\n');
+    let index = last_byte_digit(&case, b',', b'\n');
     assert_eq!(index, 5);
     b.iter(|| last_byte_digit(black_box(&case), b',', b'\n'))
 }
@@ -46,7 +46,7 @@ fn bench_last_byte_digit_one_separator(b: &mut Bencher) {
 fn bench_last_byte_digit_multiple_separator(b: &mut Bencher) {
     let case = "1234,34567,67891";
     b.bytes = case.len() as u64;
-    let (index, _) = last_byte_digit(&case, b',', b'\n');
+    let index = last_byte_digit(&case, b',', b'\n');
     assert_eq!(index, 4);
     b.iter(|| last_byte_digit(black_box(&case), b',', b'\n'))
 }

@@ -1,15 +1,12 @@
 #![feature(stdsimd)]
 
-#[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::*;
-
 pub mod avx;
 pub mod fallback;
 pub mod sse41;
 pub mod sse42;
 
 #[inline]
-pub fn last_byte_digit(s: &str, separator: u8, eof: u8) -> (u32, __m128i) {
+pub fn last_byte_digit(s: &str, separator: u8, eof: u8) -> u32 {
     #[cfg(target_arch = "x86_64")]
     {
         if is_x86_feature_detected!("sse4.2") {
@@ -71,7 +68,7 @@ unsafe fn parse_integer_avx2(s: &str, separator: u8, eol: u8) -> Option<u32> {
         return fallback::parse_integer_byte_iterator(s, separator, eol);
     }
     // find the first occurence of a separator
-    let (index, _mask) = avx::last_byte_digit(s, separator, eol);
+    let index = avx::last_byte_digit(s, separator, eol);
     match index {
         8 => return Some(avx::parse_8_chars_simd(s)),
         10 => return Some(avx::parse_10_chars_simd(s)),
@@ -92,12 +89,12 @@ unsafe fn parse_integer_avx2(s: &str, separator: u8, eol: u8) -> Option<u32> {
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-unsafe fn parse_integer_sse41(s: &str, separator: u8, eol: u8) -> Option<u32> {
+pub unsafe fn parse_integer_sse41(s: &str, separator: u8, eol: u8) -> Option<u32> {
     if s.len() < sse41::VECTOR_SIZE {
         return fallback::parse_integer_byte_iterator(s, separator, eol);
     }
     // find the first occurence of a separator
-    let (index, _mask) = last_byte_digit(s, separator, eol);
+    let index = last_byte_digit(s, separator, eol);
     match index {
         8 => return Some(sse41::parse_8_chars_simd(s)),
         10 => return Some(sse41::parse_10_chars_simd(s)),
@@ -114,6 +111,7 @@ unsafe fn parse_integer_sse41(s: &str, separator: u8, eol: u8) -> Option<u32> {
     }
 }
 
+
 #[cfg(feature = "benchmark")]
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.2")]
@@ -122,7 +120,7 @@ unsafe fn parse_integer_sse42(s: &str, separator: u8, eol: u8) -> Option<u32> {
         return fallback::parse_integer_byte_iterator(s, separator, eol);
     }
     // find the first occurence of a separator
-    let (index, _mask) = sse42::last_byte_digit(s, separator, eol);
+    let index = sse42::last_byte_digit(s, separator, eol);
     match index {
         8 => return Some(sse41::parse_8_chars_simd(s)),
         10 => return Some(sse41::parse_10_chars_simd(s)),

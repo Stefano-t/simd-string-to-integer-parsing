@@ -1,7 +1,7 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub const VECTOR_SIZE: usize = std::mem::size_of::<__m128i>();
+pub(super) const VECTOR_SIZE: usize = std::mem::size_of::<__m128i>();
 
 #[allow(dead_code)]
 #[inline]
@@ -43,7 +43,7 @@ pub unsafe fn check_all_chars_are_valid(string: &str) -> bool {
 /// 32, i.e a parsing mask made up of all zeros.
 /// This method *assumes* that the string has exactly 16 chars and it's padded
 /// with zeros if necessary.
-pub unsafe fn last_byte_digit(string: &str, separator: u8, eol: u8) -> (u32, __m128i) {
+pub unsafe fn last_byte_digit(string: &str, separator: u8, eol: u8) -> u32 {
     // create costant registers
     let commas = _mm_set1_epi8(separator as i8);
     let newlines = _mm_set1_epi8(eol as i8);
@@ -63,23 +63,9 @@ pub unsafe fn last_byte_digit(string: &str, separator: u8, eol: u8) -> (u32, __m
     let movemask = _mm_movemask_epi8(or_comma_newline);
     // the trailing zeros of the mask are the number of digits before the
     // separator in a little endian format
-    let index = movemask.trailing_zeros();
-
-    let mask = propagate(or_comma_newline);
-    (index, mask)
+    movemask.trailing_zeros()
 }
 
-#[inline]
-#[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "sse2")]
-/// Propagates the input mask to the left.
-unsafe fn propagate(mut v: __m128i) -> __m128i {
-    v = _mm_or_si128(v, _mm_slli_si128(v as _, 1) as _);
-    v = _mm_or_si128(v, _mm_slli_si128(v as _, 2) as _);
-    v = _mm_or_si128(v, _mm_slli_si128(v as _, 4) as _);
-    v = _mm_or_si128(v, _mm_slli_si128(v as _, 8) as _);
-    v
-}
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
@@ -87,7 +73,7 @@ unsafe fn propagate(mut v: __m128i) -> __m128i {
 ///
 /// The input string *must have* at least 16 chars, otherwise the internal
 /// operations will load memory outside the string bound.
-pub unsafe fn parse_8_chars_simd(s: &str) -> u32 {
+pub(super) unsafe fn parse_8_chars_simd(s: &str) -> u32 {
     let mut chunk = _mm_lddqu_si128(s.as_ptr() as *const _);
     // do not touch last 8 chars, since we don't know what they contain, avoiding
     // any kind of underflow
@@ -113,7 +99,7 @@ pub unsafe fn parse_8_chars_simd(s: &str) -> u32 {
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-pub unsafe fn parse_integer_simd_all_numbers(s: &str) -> u32 {
+pub(super) unsafe fn parse_integer_simd_all_numbers(s: &str) -> u32 {
     let mut chunk = _mm_lddqu_si128(s.as_ptr() as *const _);
     let zeros = _mm_set1_epi8(b'0' as i8);
     chunk = _mm_sub_epi16(chunk, zeros);
@@ -135,7 +121,7 @@ pub unsafe fn parse_integer_simd_all_numbers(s: &str) -> u32 {
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-pub unsafe fn parse_5_chars_simd(s: &str) -> u32 {
+pub(super) unsafe fn parse_5_chars_simd(s: &str) -> u32 {
     let mut chunk = _mm_loadu_si128(s.as_ptr() as *const _);
     let zeros = _mm_set1_epi8(b'0' as i8);
     chunk = _mm_sub_epi16(chunk, zeros);
@@ -157,7 +143,7 @@ pub unsafe fn parse_5_chars_simd(s: &str) -> u32 {
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-pub unsafe fn parse_4_chars_simd(s: &str) -> u32 {
+pub(super) unsafe fn parse_4_chars_simd(s: &str) -> u32 {
     let mut chunk = _mm_loadu_si128(s.as_ptr() as *const _);
     let zeros = _mm_set1_epi8(b'0' as i8);
     chunk = _mm_sub_epi16(chunk, zeros);
@@ -173,7 +159,7 @@ pub unsafe fn parse_4_chars_simd(s: &str) -> u32 {
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-pub unsafe fn parse_6_chars_simd(s: &str) -> u32 {
+pub(super) unsafe fn parse_6_chars_simd(s: &str) -> u32 {
     let mut chunk = _mm_loadu_si128(s.as_ptr() as *const _);
     let zeros = _mm_set1_epi8(b'0' as i8);
     chunk = _mm_sub_epi16(chunk, zeros);
@@ -195,7 +181,7 @@ pub unsafe fn parse_6_chars_simd(s: &str) -> u32 {
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-pub unsafe fn parse_7_chars_simd(s: &str) -> u32 {
+pub(super) unsafe fn parse_7_chars_simd(s: &str) -> u32 {
     let mut chunk = _mm_loadu_si128(s.as_ptr() as *const _);
     let zeros = _mm_set1_epi8(b'0' as i8);
     chunk = _mm_sub_epi16(chunk, zeros);
@@ -217,7 +203,7 @@ pub unsafe fn parse_7_chars_simd(s: &str) -> u32 {
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-pub unsafe fn parse_9_chars_simd(s: &str) -> u32 {
+pub(super) unsafe fn parse_9_chars_simd(s: &str) -> u32 {
     let mut chunk = _mm_loadu_si128(s.as_ptr() as *const _);
     let zeros = _mm_set1_epi8(b'0' as i8);
     chunk = _mm_sub_epi16(chunk, zeros);
@@ -241,7 +227,7 @@ pub unsafe fn parse_9_chars_simd(s: &str) -> u32 {
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-pub unsafe fn parse_10_chars_simd(s: &str) -> u32 {
+pub(super) unsafe fn parse_10_chars_simd(s: &str) -> u32 {
     let mut chunk = _mm_loadu_si128(s.as_ptr() as *const _);
     let zeros = _mm_set1_epi8(b'0' as i8);
     chunk = _mm_sub_epi16(chunk, zeros);
