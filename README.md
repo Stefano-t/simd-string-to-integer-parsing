@@ -20,30 +20,41 @@ The following benchmarks are generated via the `src/bin/bench/main.rs` file, rea
 
 ```console
 $ sudo journalctl --boot | grep 'kernel: tsc:' -i | cut -d' ' -f5-
- kernel: tsc: Fast TSC calibration using PIT
- kernel: tsc: Detected 2294.683 MHz processor
- kernel: tsc: Refined TSC clocksource calibration: 2294.786 MHz
+ kernel: tsc: Detected 2700.000 MHz processor
+ kernel: tsc: Detected 2699.909 MHz TSC
+ kernel: tsc: Refined TSC clocksource calibration: 2711.999 MHz
 
 $ sudo cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_{min,max}_freq
  800000
- 2900000
+ 3300000
 
 $ screenfetch -n -N
- OS: Manjaro 21.1.5 Pahvo
- Kernel: x86_64 Linux 5.10.70-1-MANJARO
- CPU: Intel Core i5-2415M @ 4x 2.9GHz [60.0°C]
- GPU: Mesa DRI Intel(R) HD Graphics 3000 (SNB GT2)
- RAM: 1787MiB / 3841MiB
- 
+ OS: Fedora 
+ Kernel: x86_64 Linux 5.14.13-200.fc34.x86_64
+ CPU: Intel Core i5-6400 @ 4x 3.3GHz [26.0°C]
+ GPU: NV126
+ RAM: 2229MiB / 7866MiB
+
 $ rustc --version
- rustc 1.56.0-nightly (25b764849 2021-08-04)
+ rustc 1.58.0-nightly (91b931926 2021-10-23)
 ```
 
-Here are the benchmarks:
+And now some benchmarks:
 
-- built-in `parse` vs. `parse_integer` without SIMD and without separator: ![std vs parse_integer no SIMD no sep](./img/optional-no-simd-no-sep.png)
-- built-in `parse` vs. `parse_integer` without SIMD but with separator: ![std vs parse_integer no SIMD with sep](./img/optional-no-simd-sep.png)
-- built-in `parse` vs. `parse_integer` SIMD and separator: ![std vs parse_integer with SIMD and sep](./img/optional-simd-sep.png)
+### SSE4.1
+
+The string to parse has length 15 for both the naive parsing method (i.e. split the string at delimeter and parse the result with the built-in `parse` method) and the `parse_integer` without SIMD; while for the `parse_integer` with SIMD, the string has length 16, with the separator in the same place of the others. 
+
+- minimum performance achived ![sse41 min performance](./img/sse41-min.png)
+- mean performance ![sse41 mean performance](./img/sse41-mean.png)
+
+### AVX2
+
+The string to parse has length 31 for both the naive parsing method (i.e. split the string at delimeter and parse the result with the built-in `parse` method) and the `parse_integer` without SIMD; while for the `parse_integer` with SIMD, the string has length 31, with the separator in the same place of the others. 
+
+- minimum performance achived ![avx2 min performance](./img/avx2-min.png)
+- mean performance ![avx2 mean performance](./img/sse41-mean.png)
+
 
 ## About code safety
 
