@@ -86,8 +86,7 @@
 use simd_parsing::*;
 use std::arch::x86_64::{__rdtscp, _mm_lfence, _mm_mfence, _mm_prefetch, _rdtsc, _MM_HINT_T0};
 use std::env;
-use std::fs;
-use std::io::{self, Write};
+use std::io::Write;
 use std::process;
 
 // Wrapper function, these are unsafe because the cpu might not have

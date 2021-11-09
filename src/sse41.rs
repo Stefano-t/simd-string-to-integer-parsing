@@ -1,6 +1,7 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+/// Size of __m128i data type
 pub(super) const VECTOR_SIZE: usize = std::mem::size_of::<__m128i>();
 
 #[allow(dead_code)]
@@ -65,7 +66,6 @@ pub unsafe fn last_byte_digit(string: &str, separator: u8, eol: u8) -> u32 {
     // separator in a little endian format
     movemask.trailing_zeros()
 }
-
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
@@ -247,4 +247,130 @@ pub(super) unsafe fn parse_10_chars_simd(s: &str) -> u32 {
     let chunk = _mm_cvtsi128_si64(chunk) as u64;
     // make room to place the 2 remeaning digits
     (((chunk & 0x00000000ffffffff) * 100) + (chunk >> 32)) as u32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    static SEP: u8 = b',';
+    static EOL: u8 = b'\n';
+
+    #[test]
+    fn check_all_chars_are_valid_simd_valid() {
+        let s = "1234567890123456";
+        unsafe {
+            assert!(check_all_chars_are_valid(s));
+        }
+    }
+
+    #[test]
+    fn check_all_chars_are_valid_simd_invalid() {
+        let s = "123456789,123456";
+        unsafe {
+            assert!(!check_all_chars_are_valid(s));
+        }
+    }
+
+    #[test]
+    fn last_byte_digit_first_digit() {
+        let s = "1,23456789123456";
+        unsafe {
+            assert_eq!(last_byte_digit(s, SEP, EOL), 1);
+        }
+    }
+
+    #[test]
+    fn last_byte_digit_more_digit() {
+        let s = "123456,789123456";
+        unsafe {
+            assert_eq!(last_byte_digit(s, SEP, EOL), 6);
+        }
+    }
+
+    #[test]
+    fn last_byte_digit_first_separator() {
+        let s = ",123456789123456";
+        unsafe {
+            assert_eq!(last_byte_digit(s, SEP, EOL), 0);
+        }
+    }
+
+    #[test]
+    fn test_parse_10_chars_simd() {
+        let s = "1234567890123456";
+        unsafe {
+            assert_eq!(parse_10_chars_simd(s), 1234567890);
+        }
+    }
+
+    #[test]
+    fn test_parse_9_chars_simd() {
+        let s = "1234567890123456";
+        unsafe {
+            assert_eq!(parse_9_chars_simd(s), 123456789);
+        }
+    }
+    #[test]
+    fn test_parse_8_chars_simd() {
+        let s = "1234567890123456";
+        unsafe {
+            assert_eq!(parse_8_chars_simd(s), 12345678);
+        }
+    }
+
+    #[test]
+    fn test_parse_7_chars_simd() {
+        let s = "1234567890123456";
+        unsafe {
+            assert_eq!(parse_7_chars_simd(s), 1234567);
+        }
+    }
+
+    #[test]
+    fn test_parse_6_chars_simd() {
+        let s = "1234567890123456";
+        unsafe {
+            assert_eq!(parse_6_chars_simd(s), 123456);
+        }
+    }
+
+    #[test]
+    fn test_parse_5_chars_simd() {
+        let s = "1234567890123456";
+        unsafe {
+            assert_eq!(parse_5_chars_simd(s), 12345);
+        }
+    }
+
+    #[test]
+    fn test_parse_4_chars_simd() {
+        let s = "1234567890123456";
+        unsafe {
+            assert_eq!(parse_4_chars_simd(s), 1234);
+        }
+    }
+
+    #[test]
+    fn parse_integer_simd_all_numbers_only_padding() {
+        let s = "0000000000000000";
+        unsafe {
+            assert_eq!(parse_integer_simd_all_numbers(s), 0);
+        }
+    }
+
+    #[test]
+    fn parse_integer_simd_all_numbers_one_digit_padding() {
+        let s = "0000000000000001";
+        unsafe {
+            assert_eq!(parse_integer_simd_all_numbers(s), 1);
+        }
+    }
+
+    #[test]
+    fn parse_integer_simd_all_numbers_mode_digits_padding() {
+        let s = "0000000000012345";
+        unsafe {
+            assert_eq!(parse_integer_simd_all_numbers(s), 12345);
+        }
+    }
 }
