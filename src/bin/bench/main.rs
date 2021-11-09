@@ -247,6 +247,9 @@ fn main() {
 
     #[cfg(feature = "benchmark")]
     {
+        use std::fs;
+        use std::io;
+
         let file_handler = fs::OpenOptions::new()
             .write(true)
             .truncate(true)

@@ -39,25 +39,25 @@ mod tests {
     #[test]
     fn last_byte_digit_no_digit() {
         let s = ",1234.4321\n";
-        assert_eq!(last_byte_digit(s, b',', b'\n'), 0);
+        assert_eq!(last_byte_digit(s, SEP, EOL), 0);
     }
 
     #[test]
     fn last_byte_digit_one_digit() {
         let s = "1,2344321";
-        assert_eq!(last_byte_digit(s, b',', b'\n'), 1);
+        assert_eq!(last_byte_digit(s, SEP, EOL), 1);
     }
 
     #[test]
     fn last_byte_digit_more_digits() {
         let s = "123,44321\n";
-        assert_eq!(last_byte_digit(s, b',', b'\n'), 3);
+        assert_eq!(last_byte_digit(s, SEP, EOL), 3);
     }
 
     #[test]
     fn last_byte_digit_empty_str() {
         let s = "";
-        assert_eq!(last_byte_digit(s, b',', b'\n'), 0);
+        assert_eq!(last_byte_digit(s, SEP, EOL), 0);
     }
 
     #[test]
