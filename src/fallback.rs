@@ -22,3 +22,32 @@ pub fn parse_byte_iterator_limited(s: &str, chars_to_parse: u32) -> u32 {
 pub fn check_all_chars_are_valid(s: &str) -> bool {
     s.bytes().all(|b| b >= b'0' && b <= b'9')
 }
+
+pub fn last_byte_digit(s: &str, separator: u8, eol: u8) -> u32 {
+    s.bytes()
+        .take_while(|&byte| (byte != separator) && (byte != eol))
+        .count() as u32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn last_byte_digit_no_digit() {
+        let s = ",1234.4321\n";
+        assert_eq!(last_byte_digit(s, b',', b'\n'), 0);
+    }
+
+    #[test]
+    fn last_byte_digit_one_digit() {
+        let s = "1,2344321";
+        assert_eq!(last_byte_digit(s, b',', b'\n'), 1);
+    }
+
+    #[test]
+    fn last_byte_digit_more_digits() {
+        let s = "123,44321\n";
+        assert_eq!(last_byte_digit(s, b',', b'\n'), 3);
+    }
+}

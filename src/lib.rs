@@ -5,60 +5,112 @@ pub mod fallback;
 pub mod sse41;
 pub mod sse42;
 
-#[inline]
-pub fn last_byte_digit(s: &str, separator: u8, eof: u8) -> u32 {
+/// Holds the pointer to the function supporeted by the underlying CPU
+static mut LAST_BYTE_DIGIT: unsafe fn(&str, u8, u8) -> u32 = last_byte_digit_dispatcher;
+
+/// Implements a single dispatch method to assign the appropiate function to the
+/// global variable LAST_BYTE_DIGIT
+fn last_byte_digit_dispatcher(s: &str, separator: u8, eol: u8) -> u32 {
     #[cfg(target_arch = "x86_64")]
     {
         if is_x86_feature_detected!("sse4.2") {
-            return unsafe { sse42::last_byte_digit(s, separator, eof) };
+            // repelace the global variable with the pointer to the sse42 function
+            unsafe {
+                LAST_BYTE_DIGIT = sse42::last_byte_digit;
+                return sse42::last_byte_digit(s, separator, eol);
+            }
         }
         if is_x86_feature_detected!("sse4.1") {
-            return unsafe { sse41::last_byte_digit(s, separator, eof) };
+            // repelace the global variable with the pointer to the sse41 function
+            unsafe {
+                LAST_BYTE_DIGIT = sse41::last_byte_digit;
+                return sse41::last_byte_digit(s, separator, eol);
+            };
         }
     }
 
-    panic!(
-        "Function `last_byte_digit` is only supported for sse41 or sse4.2.
-For now, there is no fallback function for this implementation"
-    );
+    unsafe {
+        LAST_BYTE_DIGIT = fallback::last_byte_digit;
+    }
+    return fallback::last_byte_digit(s, separator, eol);
 }
 
-#[inline]
-pub fn check_all_chars_are_valid(s: &str) -> bool {
+/// Returns the index of the last char in the string different from `separato` and `eol`
+pub fn last_byte_digit(s: &str, separator: u8, eol: u8) -> u32 {
+    unsafe { LAST_BYTE_DIGIT(s, separator, eol) }
+}
+
+static mut CHECK_CHARS: unsafe fn(&str) -> bool = check_chars_dispatcher;
+
+/// Implements a single dispatch method to assign the appropiate function to the
+/// global variable CHECK_CHARS
+fn check_chars_dispatcher(s: &str) -> bool {
     #[cfg(target_arch = "x86_64")]
     {
         if is_x86_feature_detected!("avx2") {
-            return unsafe { avx::check_all_chars_are_valid(s) };
+            unsafe {
+                CHECK_CHARS = avx::check_all_chars_are_valid;
+                return avx::check_all_chars_are_valid(s);
+            }
         }
         if is_x86_feature_detected!("sse4.2") {
-            return unsafe { sse42::check_all_chars_are_valid(s) };
+            unsafe {
+                CHECK_CHARS = sse42::check_all_chars_are_valid;
+                return sse42::check_all_chars_are_valid(s);
+            }
         }
         if is_x86_feature_detected!("sse4.1") {
-            return unsafe { sse41::check_all_chars_are_valid(s) };
+            unsafe {
+                CHECK_CHARS = sse41::check_all_chars_are_valid;
+                return sse41::check_all_chars_are_valid(s);
+            }
         }
     }
 
-    fallback::check_all_chars_are_valid(s)
+    unsafe {
+        CHECK_CHARS = fallback::check_all_chars_are_valid;
+    }
+    return fallback::check_all_chars_are_valid(s);
+}
+
+/// Deteremines if the string in made of all numbers
+pub fn check_all_chars_are_valid(s: &str) -> bool {
+    unsafe { CHECK_CHARS(s) }
+}
+
+static mut PARSE_INTEGER: unsafe fn(&str, u8, u8) -> Option<u32> = parse_integer_dispatcher;
+
+/// Assigns the correct implementation to the global variable PARSE_INTEGER
+fn parse_integer_dispatcher(s: &str, separator: u8, eol: u8) -> Option<u32> {
+    #[cfg(target_arch = "x86_64")]
+    {
+        if is_x86_feature_detected!("avx2") {
+            unsafe {
+                PARSE_INTEGER = parse_integer_avx2;
+                return parse_integer_avx2(s, separator, eol);
+            }
+        }
+        if is_x86_feature_detected!("sse4.1") {
+            unsafe {
+                PARSE_INTEGER = parse_integer_sse41;
+                return parse_integer_sse41(s, separator, eol);
+            }
+        }
+    }
+    unsafe {
+        PARSE_INTEGER = fallback::parse_integer_byte_iterator;
+    }
+    fallback::parse_integer_byte_iterator(s, separator, eol)
 }
 
 /// Parses an integer from the given string
 ///
-/// If the string has length less than 16 chars, then no SIMD acceleration is
-/// used; in this case, the method resorts to an iterative process to parse the
-/// integer.  If the string has at least 16 chars, then it can perform parsing
-/// exploiting the SIMD intrinsics.
+/// If the string has length less than 16 chars (or 32 if AVX is used), then no
+/// SIMD acceleration is used; in this case, the method resorts to an iterative
+/// process to parse the integer.  If the string has at least 16 chars (or 32
+/// for AVX), then it can perform parsing exploiting the SIMD intrinsics.
 pub fn parse_integer(s: &str, separator: u8, eol: u8) -> Option<u32> {
-    #[cfg(target_arch = "x86_64")]
-    {
-        if is_x86_feature_detected!("avx2") {
-            return unsafe { parse_integer_avx2(s, separator, eol) };
-        }
-        if is_x86_feature_detected!("sse4.1") {
-            return unsafe { parse_integer_sse41(s, separator, eol) };
-        }
-    }
-
-    fallback::parse_integer_byte_iterator(s, separator, eol)
+    unsafe { PARSE_INTEGER(s, separator, eol) }
 }
 
 #[cfg(target_arch = "x86_64")]
@@ -89,7 +141,7 @@ unsafe fn parse_integer_avx2(s: &str, separator: u8, eol: u8) -> Option<u32> {
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-pub unsafe fn parse_integer_sse41(s: &str, separator: u8, eol: u8) -> Option<u32> {
+unsafe fn parse_integer_sse41(s: &str, separator: u8, eol: u8) -> Option<u32> {
     if s.len() < sse41::VECTOR_SIZE {
         return fallback::parse_integer_byte_iterator(s, separator, eol);
     }
@@ -110,7 +162,6 @@ pub unsafe fn parse_integer_sse41(s: &str, separator: u8, eol: u8) -> Option<u32
         _ => return None,
     }
 }
-
 
 #[cfg(feature = "benchmark")]
 #[cfg(target_arch = "x86_64")]
