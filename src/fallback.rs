@@ -23,6 +23,7 @@ pub fn check_all_chars_are_valid(s: &str) -> bool {
     s.bytes().all(|b| b >= b'0' && b <= b'9')
 }
 
+/// Returns the index of the last digit char
 pub fn last_byte_digit(s: &str, separator: u8, eol: u8) -> u32 {
     s.bytes()
         .take_while(|&byte| (byte != separator) && (byte != eol))
@@ -32,6 +33,8 @@ pub fn last_byte_digit(s: &str, separator: u8, eol: u8) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    static SEP: u8 = b',';
+    static EOL: u8 = b'\n';
 
     #[test]
     fn last_byte_digit_no_digit() {
@@ -49,5 +52,83 @@ mod tests {
     fn last_byte_digit_more_digits() {
         let s = "123,44321\n";
         assert_eq!(last_byte_digit(s, b',', b'\n'), 3);
+    }
+
+    #[test]
+    fn last_byte_digit_empty_str() {
+        let s = "";
+        assert_eq!(last_byte_digit(s, b',', b'\n'), 0);
+    }
+
+    #[test]
+    fn check_all_chars_are_valid_one_digit() {
+        let s = "1";
+        assert!(check_all_chars_are_valid(s));
+    }
+
+    #[test]
+    fn check_all_chars_are_valid_more_digits() {
+        let s = "12345";
+        assert!(check_all_chars_are_valid(s));
+    }
+
+    #[test]
+    fn check_all_chars_are_valid_invalid() {
+        let s = "1234,412";
+        assert!(!check_all_chars_are_valid(s));
+    }
+
+    #[test]
+    fn check_all_chars_are_valid_empty() {
+        let s = "";
+        assert!(check_all_chars_are_valid(s));
+    }
+
+    #[test]
+    fn parse_byte_iterator_limited_one_digit() {
+        let s = "12345678";
+        assert_eq!(parse_byte_iterator_limited(s, 1), 1);
+    }
+
+    #[test]
+    fn parse_byte_iterator_limited_more_digits() {
+        let s = "12345678";
+        assert_eq!(parse_byte_iterator_limited(s, 4), 1234);
+    }
+
+    #[test]
+    fn parse_byte_iterator_limited_zero_index() {
+        let s = "12345678";
+        assert_eq!(parse_byte_iterator_limited(s, 0), 0);
+    }
+
+    #[test]
+    fn parse_byte_iterator_limited_empty_but_index() {
+        let s = "";
+        assert_eq!(parse_byte_iterator_limited(s, 1), 0);
+    }
+
+    #[test]
+    fn parse_integer_byte_iterator_no_separator() {
+        let s = "12345678";
+        assert_eq!(parse_integer_byte_iterator(s, SEP, EOL), Some(12345678));
+    }
+
+    #[test]
+    fn parse_integer_byte_iterator_separator() {
+        let s = "123,45678";
+        assert_eq!(parse_integer_byte_iterator(s, SEP, EOL), Some(123));
+    }
+
+    #[test]
+    fn parse_integer_byte_iterator_empty() {
+        let s = "";
+        assert_eq!(parse_integer_byte_iterator(s, SEP, EOL), None);
+    }
+
+    #[test]
+    fn parse_integer_byte_iterator_only_separators() {
+        let s = "\n\n,,";
+        assert_eq!(parse_integer_byte_iterator(s, SEP, EOL), None);
     }
 }
