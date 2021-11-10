@@ -25,7 +25,7 @@ fn last_byte_digit_dispatcher(s: &str, separator: u8, eol: u8) -> u32 {
             unsafe {
                 LAST_BYTE_DIGIT = sse41::last_byte_digit;
                 return sse41::last_byte_digit(s, separator, eol);
-            };
+            }
         }
     }
 
@@ -35,7 +35,7 @@ fn last_byte_digit_dispatcher(s: &str, separator: u8, eol: u8) -> u32 {
     return fallback::last_byte_digit(s, separator, eol);
 }
 
-/// Returns the index of the last char in the string different from `separato` and `eol`
+/// Returns the index of the last char in the string different from `separator` and `eol`
 pub fn last_byte_digit(s: &str, separator: u8, eol: u8) -> u32 {
     unsafe { LAST_BYTE_DIGIT(s, separator, eol) }
 }
@@ -206,5 +206,140 @@ pub fn safe_parse_integer_sse42(s: &str, separator: u8, eol: u8) -> Option<u32> 
 pub fn safe_parse_integer_avx2(s: &str, separator: u8, eol: u8) -> Option<u32> {
     unsafe {
         return parse_integer_avx2(s, separator, eol);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    static SEP: u8 = b',';
+    static EOL: u8 = b'\n';
+
+    // ===== fallback tests =====
+
+    #[test]
+    fn parse_integer_empty() {
+        let s = "";
+        assert_eq!(parse_integer(s, SEP, EOL), None);
+    }
+
+    #[test]
+    fn parse_integer_no_digit() {
+        let s = ",,\n123";
+        assert_eq!(parse_integer(s, SEP, EOL), None);
+    }
+
+    #[test]
+    fn parse_integer_one_digit() {
+        let s = "1,123,23\n0";
+        assert_eq!(parse_integer(s, SEP, EOL), Some(1));
+    }
+
+    #[test]
+    fn parse_integer_more_digits() {
+        let s = "1123,23\n0";
+        assert_eq!(parse_integer(s, SEP, EOL), Some(1123));
+    }
+
+    #[test]
+    fn parse_integer_all_digits() {
+        let s = "112323";
+        assert_eq!(parse_integer(s, SEP, EOL), Some(112323));
+    }
+
+    // ===== AVX2 tests =====
+
+    #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+    #[test]
+    fn check_all_chars_are_valid_valid_avx2() {
+        let s = "12345678901234567890123456789012";
+        assert!(check_all_chars_are_valid(s));
+    }
+
+    #[cfg(all(target_arch = "x86_64", any(target_feature = "avx2")))]
+    #[test]
+    fn parse_integer_avx2_fallback() {
+        let s = "12345678";
+        assert_eq!(parse_integer(s, SEP, EOL), Some(12345678));
+    }
+
+    #[cfg(all(target_arch = "x86_64", any(target_feature = "avx2")))]
+    #[test]
+    fn parse_integer_avx2_no_digit() {
+        let s = ",,345678901234567890123456789012";
+        assert_eq!(parse_integer(s, SEP, EOL), None);
+    }
+
+    #[cfg(all(target_arch = "x86_64", any(target_feature = "avx2")))]
+    #[test]
+    fn parse_integer_avx2_one_digit() {
+        let s = "1,345678901234567890123456789012";
+        assert_eq!(parse_integer(s, SEP, EOL), Some(1));
+    }
+
+    #[cfg(all(target_arch = "x86_64", any(target_feature = "avx2")))]
+    #[test]
+    fn parse_integer_avx2_more_digits() {
+        let s = "12345678,01234567890123456789012";
+        assert_eq!(parse_integer(s, SEP, EOL), Some(12345678));
+    }
+
+    #[cfg(all(target_arch = "x86_64", any(target_feature = "avx2")))]
+    #[test]
+    fn parse_integer_avx2_all_digits_padded() {
+        let s = "00000000000000000000000012345678";
+        assert_eq!(parse_integer(s, SEP, EOL), Some(12345678));
+    }
+
+    // ===== SSE4.1/2 tests =====
+
+    #[cfg(all(
+        target_arch = "x86_64",
+        any(target_feature = "sse4.1", target_feature = "sse4.2")
+    ))]
+    #[test]
+    fn parse_integer_sse4_fallback() {
+        let s = "1123,23";
+        assert_eq!(parse_integer(s, SEP, EOL), Some(1123));
+    }
+
+    #[cfg(all(
+        target_arch = "x86_64",
+        any(target_feature = "sse4.1", target_feature = "sse4.2")
+    ))]
+    #[test]
+    fn parse_integer_sse4_no_digit() {
+        let s = ",\n12345678912345";
+        assert_eq!(parse_integer(s, SEP, EOL), None);
+    }
+
+    #[cfg(all(
+        target_arch = "x86_64",
+        any(target_feature = "sse4.1", target_feature = "sse4.2")
+    ))]
+    #[test]
+    fn parse_integer_sse4_one_digit() {
+        let s = "1,12345678912345";
+        assert_eq!(parse_integer(s, SEP, EOL), Some(1));
+    }
+
+    #[cfg(all(
+        target_arch = "x86_64",
+        any(target_feature = "sse4.1", target_feature = "sse4.2")
+    ))]
+    #[test]
+    fn parse_integer_sse4_more_digits() {
+        let s = "12345607,8912345";
+        assert_eq!(parse_integer(s, SEP, EOL), Some(12345607));
+    }
+
+    #[cfg(all(
+        target_arch = "x86_64",
+        any(target_feature = "sse4.1", target_feature = "sse4.2")
+    ))]
+    #[test]
+    fn parse_integer_sse4_all_digits_padded() {
+        let s = "0000000012345678";
+        assert_eq!(parse_integer(s, SEP, EOL), Some(12345678));
     }
 }
