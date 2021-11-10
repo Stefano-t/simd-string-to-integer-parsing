@@ -7,7 +7,7 @@ pub(super) const VECTOR_SIZE: usize = std::mem::size_of::<__m256i>(); // 32
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 /// Checks that all the bytes are valid digits
-pub(super) unsafe fn check_all_chars_are_valid(string: &str) -> bool {
+pub unsafe fn check_all_chars_are_valid(string: &str) -> bool {
     if string.len() < VECTOR_SIZE {
         return crate::fallback::check_all_chars_are_valid(string);
     }
@@ -37,7 +37,7 @@ pub(super) unsafe fn check_all_chars_are_valid(string: &str) -> bool {
 #[inline]
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-pub(super) unsafe fn last_byte_digit(string: &str, separator: u8, eol: u8) -> u32 {
+pub unsafe fn last_byte_digit(string: &str, separator: u8, eol: u8) -> u32 {
     // create costant registers
     let commas = _mm256_set1_epi8(separator as i8);
     let newlines = _mm256_set1_epi8(eol as i8);
