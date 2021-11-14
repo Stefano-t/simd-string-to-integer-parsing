@@ -11,33 +11,43 @@ pub unsafe fn check_all_chars_are_valid(string: &str) -> bool {
     if string.len() < VECTOR_SIZE {
         return crate::fallback::check_all_chars_are_valid(string);
     }
-    let value = _mm256_loadu_si256(string.as_ptr() as *const _);
-    // the -1 is because we don't have a >= instruction, we only have the >
-    let zeros = _mm256_set1_epi8(b'0' as i8 - 1);
-    // the +1 is because we don't have a <= instruction, we only have the <
-    let nines = _mm256_set1_epi8(b'9' as i8 + 1);
-
-    // compare the values with the upper and lower bounds
-    let bytes_bigger_or_equal_than_zero_mask = _mm256_cmpgt_epi8(value, zeros);
-    // we need to swap the operands since AVX2 hasn't got `less than` operation
-    let bytes_smaller_or_equal_than_nine_mask = _mm256_cmpgt_epi8(nines, value);
-
-    // and the two masks to get the valid bytes
-    let valid_bytes_mask = _mm256_and_si256(
-        bytes_bigger_or_equal_than_zero_mask,
-        bytes_smaller_or_equal_than_nine_mask,
-    );
-
-    // when the mask is composed by all 1s, the `movemask` loads into in a i32
-    // all most significant bit of 8-bit element, and crates an i32 made of all
-    // 1s, i.e. -1 in two's complement
-    _mm256_movemask_epi8(valid_bytes_mask) == -1
+    last_digit_byte(string) == 32
 }
 
 #[inline]
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-pub unsafe fn last_byte_digit(string: &str, separator: u8, eol: u8) -> u32 {
+/// Returns the index of the last digit in the string
+pub unsafe fn last_digit_byte(string: &str) -> u32 {
+    if string.len() < VECTOR_SIZE {
+        return crate::fallback::last_digit_byte(string);
+    }
+
+    let value = _mm256_loadu_si256(string.as_ptr() as *const _);
+    // Load constant registers
+    let zeros = _mm256_set1_epi8(b'0' as i8);
+    let nines = _mm256_set1_epi8(b'9' as i8);
+
+    // Compare the values with the upper and lower bounds
+    // We need to swap the operands since AVX2 hasn't got `less than` operation
+    let bytes_bigger_or_equal_than_zero_mask  = _mm256_cmpgt_epi8(zeros, value);
+    let bytes_smaller_or_equal_than_nine_mask = _mm256_cmpgt_epi8(value, nines);
+
+    // OR the two masks to get the valid bytes
+    let valid_bytes_mask = _mm256_or_si256(
+        bytes_bigger_or_equal_than_zero_mask,
+        bytes_smaller_or_equal_than_nine_mask,
+    );
+
+    // Load the OR mask into an int and count the number of trailing zeros at
+    // the end of the numbers, i.e. the number of digits in the input string
+    _mm256_movemask_epi8(valid_bytes_mask).trailing_zeros()
+}
+
+#[inline]
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+pub unsafe fn last_byte_without_separator(string: &str, separator: u8, eol: u8) -> u32 {
     // create costant registers
     let commas = _mm256_set1_epi8(separator as i8);
     let newlines = _mm256_set1_epi8(eol as i8);
@@ -278,29 +288,53 @@ mod tests {
     }
 
     #[test]
-    fn test_last_byte_digit_below_10() {
+    fn test_last_byte_without_separator_below_10() {
         let s = "1111111,111111111111111111111111";
         unsafe {
-            let last = last_byte_digit(s, b',', b'\n');
+            let last = last_byte_without_separator(s, b',', b'\n');
             assert_eq!(last, 7);
         }
     }
 
     #[test]
-    fn test_last_byte_digit_no_sep() {
+    fn test_last_byte_without_separator_no_sep() {
         let s = "11111111111111111111111111111111";
         unsafe {
-            let last = last_byte_digit(s, b',', b'\n');
+            let last = last_byte_without_separator(s, b',', b'\n');
             assert_eq!(last, 32);
         }
     }
 
     #[test]
-    fn test_last_byte_digit_multiple_sep() {
+    fn test_last_byte_without_separator_multiple_sep() {
         let s = "11111,1111\n111111111111111111111";
         unsafe {
-            let last = last_byte_digit(s, b',', b'\n');
+            let last = last_byte_without_separator(s, b',', b'\n');
             assert_eq!(last, 5);
+        }
+    }
+
+    #[test]
+    fn last_digit_byte_no_digit() {
+        let s = "//:12340543905489012348908541009";
+        unsafe {
+            assert_eq!(last_digit_byte(s), 0);
+        }
+    }
+
+    #[test]
+    fn last_digit_byte_all_digits() {
+        let s = "12312340543905489012348908541009";
+        unsafe {
+            assert_eq!(last_digit_byte(s), 32);
+        }
+    }
+
+    #[test]
+    fn last_digit_byte_some_digits() {
+        let s = "1231/:340543905489012348908541009";
+        unsafe {
+            assert_eq!(last_digit_byte(s), 4);
         }
     }
 

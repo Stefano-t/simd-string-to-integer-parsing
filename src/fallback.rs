@@ -23,10 +23,17 @@ pub fn check_all_chars_are_valid(s: &str) -> bool {
     s.bytes().all(|b| b >= b'0' && b <= b'9')
 }
 
-/// Returns the index of the last digit char
-pub fn last_byte_digit(s: &str, separator: u8, eol: u8) -> u32 {
+/// Returns the index of the last digit not equals to separator or eol
+pub fn last_byte_without_separator(s: &str, separator: u8, eol: u8) -> u32 {
     s.bytes()
         .take_while(|&byte| (byte != separator) && (byte != eol))
+        .count() as u32
+}
+
+/// Returns the index of the last digit in the string
+pub fn last_digit_byte(s: &str) -> u32 {
+    s.bytes()
+        .take_while(|&b| (b >= b'0') && (b <= b'9'))
         .count() as u32
 }
 
@@ -37,29 +44,53 @@ mod tests {
     static EOL: u8 = b'\n';
 
     #[test]
-    fn last_byte_digit_no_digit() {
+    fn last_byte_without_separator_no_digit() {
         let s = ",1234.4321\n";
-        assert_eq!(last_byte_digit(s, SEP, EOL), 0);
+        assert_eq!(last_byte_without_separator(s, SEP, EOL), 0);
     }
 
     #[test]
-    fn last_byte_digit_one_digit() {
+    fn last_byte_without_separator_one_digit() {
         let s = "1,2344321";
-        assert_eq!(last_byte_digit(s, SEP, EOL), 1);
+        assert_eq!(last_byte_without_separator(s, SEP, EOL), 1);
     }
 
     #[test]
-    fn last_byte_digit_more_digits() {
+    fn last_byte_without_separator_more_digits() {
         let s = "123,44321\n";
-        assert_eq!(last_byte_digit(s, SEP, EOL), 3);
+        assert_eq!(last_byte_without_separator(s, SEP, EOL), 3);
     }
 
     #[test]
-    fn last_byte_digit_empty_str() {
+    fn last_byte_without_separator_empty_str() {
         let s = "";
-        assert_eq!(last_byte_digit(s, SEP, EOL), 0);
+        assert_eq!(last_byte_without_separator(s, SEP, EOL), 0);
     }
 
+    #[test]
+    fn last_digit_byte_empty_str() {
+        let s = "";
+        assert_eq!(last_digit_byte(s), 0);
+    }
+
+    #[test]
+    fn last_digit_byte_one_digit() {
+        let s = "1";
+        assert_eq!(last_digit_byte(s), 1);
+    }
+
+    #[test]
+    fn last_digit_byte_more_digits() {
+        let s = "012349";
+        assert_eq!(last_digit_byte(s), 6);
+    }
+
+    #[test]
+    fn last_digit_byte_more_digits_and_separators() {
+        let s = "0123,!49";
+        assert_eq!(last_digit_byte(s), 4);
+    }
+    
     #[test]
     fn check_all_chars_are_valid_one_digit() {
         let s = "1";

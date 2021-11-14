@@ -23,9 +23,33 @@ pub unsafe fn check_all_chars_are_valid(s: &str) -> bool {
 }
 
 #[target_feature(enable = "sse4.2")]
-pub unsafe fn last_byte_digit(s: &str, separator: u8, eol: u8) -> u32 {
+/// Returns the index of the last digiti in the string
+/// 
+/// In case of a string made of all numbers, the call to the SSE4.2 will return
+/// 32, since the mask has value 0. This happens only when the string has length
+/// at least 16 and the intrinisic is called
+pub unsafe fn last_digit_byte(s: &str) -> u32 {
     if s.len() < VECTOR_SIZE {
-        return crate::fallback::last_byte_digit(s, separator, eol);
+        return crate::fallback::last_digit_byte(s);
+    }
+    let to_cmp = _mm_loadu_si128(s.as_ptr() as *const _);
+    let valid_nums = _mm_loadu_si128(NUMERIC_VALUES.as_ptr() as *const _);
+    let mask = _mm_cmpistrm(
+        valid_nums,
+        to_cmp,
+        // cmp for any match | negate the result | create a byte mask
+        _SIDD_CMP_EQUAL_ANY | _SIDD_NEGATIVE_POLARITY | _SIDD_UNIT_MASK,
+    );
+    // translate the mask into an integer
+    let idx = _mm_movemask_epi8(mask);
+    idx.trailing_zeros()
+}
+
+
+#[target_feature(enable = "sse4.2")]
+pub unsafe fn last_byte_without_separator(s: &str, separator: u8, eol: u8) -> u32 {
+    if s.len() < VECTOR_SIZE {
+        return crate::fallback::last_byte_without_separator(s, separator, eol);
     }
     let to_cmp = _mm_loadu_si128(s.as_ptr() as *const _);
     let valid_nums = _mm_loadu_si128(NUMERIC_VALUES.as_ptr() as *const _);
@@ -47,26 +71,50 @@ mod tests {
     static EOL: u8 = b'\n';
 
     #[test]
-    fn last_byte_digit_no_digit() {
+    fn last_byte_without_separator_no_digit() {
         let s = ",1234.4321\n    ";
         unsafe {
-            assert_eq!(last_byte_digit(s, SEP, EOL), 0);
+            assert_eq!(last_byte_without_separator(s, SEP, EOL), 0);
         }
     }
 
     #[test]
-    fn last_byte_digit_one_digit() {
+    fn last_byte_without_separator_one_digit() {
         let s = "1,2343211234432542";
         unsafe {
-            assert_eq!(last_byte_digit(s, SEP, EOL), 1);
+            assert_eq!(last_byte_without_separator(s, SEP, EOL), 1);
         }
     }
 
     #[test]
-    fn last_byte_digit_more_digits() {
+    fn last_byte_without_separator_more_digits() {
         let s = "123,44321\n12345";
         unsafe {
-            assert_eq!(last_byte_digit(s, SEP, EOL), 3);
+            assert_eq!(last_byte_without_separator(s, SEP, EOL), 3);
+        }
+    }
+    
+    #[test]
+    fn last_digit_byte_all_numbers() {
+        let s = "1239443218123459";
+        unsafe {
+            assert_eq!(last_digit_byte(s), 32);
+        }
+    }
+
+    #[test]
+    fn last_digit_byte_no_number() {
+        let s = "/2.944321812345";
+        unsafe {
+            assert_eq!(last_digit_byte(s), 0);
+        }
+    }
+
+    #[test]
+    fn last_digit_byte_some_digits() {
+        let s = "129,44321812345";
+        unsafe {
+            assert_eq!(last_digit_byte(s), 3);
         }
     }
 

@@ -44,31 +44,31 @@ fn bench_check_chars_validity_valid_avx(b: &mut Bencher) {
 }
 
 #[bench]
-fn bench_last_byte_digit_fallback(b: &mut Bencher) {
+fn bench_last_byte_without_separator_fallback(b: &mut Bencher) {
     let case = "0000001,2345678";
     b.bytes = case.len() as u64;
-    b.iter(|| last_byte_digit(black_box(&case), b',', b'\n'))
+    b.iter(|| last_byte_without_separator(black_box(&case), b',', b'\n'))
 }
 
 #[bench]
-fn bench_last_byte_digit_sse41(b: &mut Bencher) {
+fn bench_last_byte_without_separator_sse41(b: &mut Bencher) {
     let case = "1234567,23456781";
     b.bytes = case.len() as u64;
-    unsafe { b.iter(|| sse41::last_byte_digit(black_box(&case), b',', b'\n')) }
+    unsafe { b.iter(|| sse41::last_byte_without_separator(black_box(&case), b',', b'\n')) }
 }
 
 #[bench]
-fn bench_last_byte_digit_sse42(b: &mut Bencher) {
+fn bench_last_byte_without_separator_sse42(b: &mut Bencher) {
     let case = "0000001,23456789";
     b.bytes = case.len() as u64;
-    unsafe { b.iter(|| sse42::last_byte_digit(black_box(&case), b',', b'\n')) }
+    unsafe { b.iter(|| sse42::last_byte_without_separator(black_box(&case), b',', b'\n')) }
 }
 
 #[bench]
-fn bench_last_byte_digit_avx(b: &mut Bencher) {
+fn bench_last_byte_without_separator_avx(b: &mut Bencher) {
     let case = "1234567,234567810123456789012345";
     b.bytes = case.len() as u64;
-    unsafe { b.iter(|| avx::last_byte_digit(black_box(&case), b',', b'\n')) }
+    unsafe { b.iter(|| avx::last_byte_without_separator(black_box(&case), b',', b'\n')) }
 }
 
 #[bench]
@@ -79,6 +79,7 @@ fn bench_parse_integer_2_digits_fallback(b: &mut Bencher) {
 }
 
 #[bench]
+#[cfg(feature = "benchmark")]
 fn bench_parse_integer_2_digits_sse41_separator(b: &mut Bencher) {
     let case = "12,1111111111111";
     b.bytes = case.len() as u64;
@@ -86,6 +87,7 @@ fn bench_parse_integer_2_digits_sse41_separator(b: &mut Bencher) {
 }
 
 #[bench]
+#[cfg(feature = "benchmark")]
 fn bench_parse_integer_2_digits_avx_separator(b: &mut Bencher) {
     let case = "12,11111111111112222222222222222";
     b.bytes = case.len() as u64;
@@ -107,6 +109,7 @@ fn bench_parse_integer_5_digits_fallback(b: &mut Bencher) {
 }
 
 #[bench]
+#[cfg(feature = "benchmark")]
 fn bench_parse_integer_5_digits_sse41_separator(b: &mut Bencher) {
     let case = "12345,1234567890";
     b.bytes = case.len() as u64;
@@ -114,6 +117,7 @@ fn bench_parse_integer_5_digits_sse41_separator(b: &mut Bencher) {
 }
 
 #[bench]
+#[cfg(feature = "benchmark")]
 fn bench_parse_integer_5_digits_avx_separator(b: &mut Bencher) {
     let case = "12345,12345678901234567890123456";
     b.bytes = case.len() as u64;
@@ -136,6 +140,7 @@ fn bench_parse_integer_10_digits_fallback(b: &mut Bencher) {
 }
 
 #[bench]
+#[cfg(feature = "benchmark")]
 fn bench_parse_integer_10_digits_sse41_separator(b: &mut Bencher) {
     let case = "1234512345,67890";
     b.bytes = case.len() as u64;
@@ -143,6 +148,7 @@ fn bench_parse_integer_10_digits_sse41_separator(b: &mut Bencher) {
 }
 
 #[bench]
+#[cfg(feature = "benchmark")]
 fn bench_parse_integer_10_digits_avx_separator(b: &mut Bencher) {
     let case = "1234512345,678901234567890123456";
     b.bytes = case.len() as u64;

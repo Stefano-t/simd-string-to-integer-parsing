@@ -16,27 +16,27 @@ fn last_byte_digit_dispatcher(s: &str, separator: u8, eol: u8) -> u32 {
         if is_x86_feature_detected!("sse4.2") {
             // repelace the global variable with the pointer to the sse42 function
             unsafe {
-                LAST_BYTE_DIGIT = sse42::last_byte_digit;
-                return sse42::last_byte_digit(s, separator, eol);
+                LAST_BYTE_DIGIT = sse42::last_byte_without_separator;
+                return sse42::last_byte_without_separator(s, separator, eol);
             }
         }
         if is_x86_feature_detected!("sse4.1") {
             // repelace the global variable with the pointer to the sse41 function
             unsafe {
-                LAST_BYTE_DIGIT = sse41::last_byte_digit;
-                return sse41::last_byte_digit(s, separator, eol);
+                LAST_BYTE_DIGIT = sse41::last_byte_without_separator;
+                return sse41::last_byte_without_separator(s, separator, eol);
             }
         }
     }
 
     unsafe {
-        LAST_BYTE_DIGIT = fallback::last_byte_digit;
+        LAST_BYTE_DIGIT = fallback::last_byte_without_separator;
     }
-    return fallback::last_byte_digit(s, separator, eol);
+    return fallback::last_byte_without_separator(s, separator, eol);
 }
 
 /// Returns the index of the last char in the string different from `separator` and `eol`
-pub fn last_byte_digit(s: &str, separator: u8, eol: u8) -> u32 {
+pub fn last_byte_without_separator(s: &str, separator: u8, eol: u8) -> u32 {
     unsafe { LAST_BYTE_DIGIT(s, separator, eol) }
 }
 
@@ -120,7 +120,7 @@ unsafe fn parse_integer_avx2(s: &str, separator: u8, eol: u8) -> Option<u32> {
         return fallback::parse_integer_byte_iterator(s, separator, eol);
     }
     // find the first occurence of a separator
-    let index = avx::last_byte_digit(s, separator, eol);
+    let index = avx::last_byte_without_separator(s, separator, eol);
     match index {
         8 => return Some(avx::parse_8_chars_simd(s)),
         10 => return Some(avx::parse_10_chars_simd(s)),
@@ -146,7 +146,7 @@ unsafe fn parse_integer_sse41(s: &str, separator: u8, eol: u8) -> Option<u32> {
         return fallback::parse_integer_byte_iterator(s, separator, eol);
     }
     // find the first occurence of a separator
-    let index = last_byte_digit(s, separator, eol);
+    let index = last_byte_without_separator(s, separator, eol);
     match index {
         8 => return Some(sse41::parse_8_chars_simd(s)),
         10 => return Some(sse41::parse_10_chars_simd(s)),
@@ -171,7 +171,7 @@ unsafe fn parse_integer_sse42(s: &str, separator: u8, eol: u8) -> Option<u32> {
         return fallback::parse_integer_byte_iterator(s, separator, eol);
     }
     // find the first occurence of a separator
-    let index = sse42::last_byte_digit(s, separator, eol);
+    let index = sse42::last_byte_without_separator(s, separator, eol);
     match index {
         8 => return Some(sse41::parse_8_chars_simd(s)),
         10 => return Some(sse41::parse_10_chars_simd(s)),
