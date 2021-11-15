@@ -23,7 +23,7 @@ pub unsafe fn check_all_chars_are_valid(s: &str) -> bool {
 }
 
 #[target_feature(enable = "sse4.2")]
-/// Returns the index of the last digiti in the string
+/// Returns the index of the last digit in the string
 /// 
 /// In case of a string made of all numbers, the call to the SSE4.2 will return
 /// 32, since the mask has value 0. This happens only when the string has length

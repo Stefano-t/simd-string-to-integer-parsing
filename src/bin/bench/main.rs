@@ -324,7 +324,7 @@ fn bench_sse41(times: usize, file: &mut dyn Write) {
             b',',
             b'\n',
             TRIALS,
-            safe_parse_integer_sse41,
+            safe_parse_integer_separator_sse41,
             file
         );
         // generate a number of 15 digits with a comma. In this way, no SIMD is used
@@ -337,7 +337,7 @@ fn bench_sse41(times: usize, file: &mut dyn Write) {
             b',',
             b'\n',
             TRIALS,
-            safe_parse_integer_sse41,
+            safe_parse_integer_separator_sse41,
             file
         );
         // generate a 16 chars string to use SIMD and place a comma
@@ -349,7 +349,7 @@ fn bench_sse41(times: usize, file: &mut dyn Write) {
             b',',
             b'\n',
             TRIALS,
-            safe_parse_integer_sse41,
+            safe_parse_integer_separator_sse41,
             file
         );
         file.write(b"\n").expect("error in writing to file...");
@@ -368,7 +368,7 @@ fn bench_sse42(times: usize, file: &mut dyn Write) {
             b',',
             b'\n',
             TRIALS,
-            safe_parse_integer_sse42,
+            safe_parse_integer_separator_sse42,
             file
         );
         // generate a number of 31 digits with a comma. In this way, no SIMD is used
@@ -381,7 +381,7 @@ fn bench_sse42(times: usize, file: &mut dyn Write) {
             b',',
             b'\n',
             TRIALS,
-            safe_parse_integer_sse42,
+            safe_parse_integer_separator_sse42,
             file
         );
         // generate a 32 chars string to use SIMD and place a comma
@@ -393,7 +393,7 @@ fn bench_sse42(times: usize, file: &mut dyn Write) {
             b',',
             b'\n',
             TRIALS,
-            safe_parse_integer_sse42,
+            safe_parse_integer_separator_sse42,
             file
         );
         file.write(b"\n").expect("error in writing to file...");
@@ -412,7 +412,7 @@ fn bench_avx2(times: usize, file: &mut dyn Write) {
             b',',
             b'\n',
             TRIALS,
-            safe_parse_integer_avx2,
+            safe_parse_integer_separator_avx2,
             file
         );
         // generate a number of 31 digits with a comma. In this way, no SIMD is used
@@ -425,7 +425,7 @@ fn bench_avx2(times: usize, file: &mut dyn Write) {
             b',',
             b'\n',
             TRIALS,
-            safe_parse_integer_avx2,
+            safe_parse_integer_separator_avx2,
             file
         );
         // generate a 32 chars string to use SIMD and place a comma
@@ -437,7 +437,7 @@ fn bench_avx2(times: usize, file: &mut dyn Write) {
             b',',
             b'\n',
             TRIALS,
-            safe_parse_integer_avx2,
+            safe_parse_integer_separator_avx2,
             file
         );
         file.write(b"\n").expect("error in writing to file...");
@@ -459,17 +459,17 @@ fn bench_len(l: usize, file: &mut dyn Write) {
     // generate a number to parse
     let number_to_parse = (0..l).map(|_| "1").collect::<Vec<_>>().join("");
     bench!(number_to_parse.as_str(), TRIALS, std_test, file);
-    bench!(&number_to_parse, b',', b'\n', TRIALS, parse_integer, file);
+    bench!(&number_to_parse, b',', b'\n', TRIALS, parse_integer_separator, file);
     // generate a number of 15 digits with a comma. In this way, no SIMD is used
     let mut vec = (0..15).map(|_| "1").collect::<Vec<_>>();
     vec[l] = ",";
     let number_to_parse = vec.join("");
     bench!(&number_to_parse, TRIALS, std_delimeter_test, file);
-    bench!(&number_to_parse, b',', b'\n', TRIALS, parse_integer, file);
+    bench!(&number_to_parse, b',', b'\n', TRIALS, parse_integer_separator, file);
     // generate a 16 chars string to use SIMD and place a comma
     let mut vec = (0..16).map(|_| "1").collect::<Vec<_>>();
     vec[l] = ",";
     let number_to_parse = vec.join("");
-    bench!(&number_to_parse, b',', b'\n', TRIALS, parse_integer, file);
+    bench!(&number_to_parse, b',', b'\n', TRIALS, parse_integer_separator, file);
     file.write(b"\n").expect("error in writing to file...");
 }
