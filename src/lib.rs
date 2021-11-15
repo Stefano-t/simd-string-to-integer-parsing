@@ -358,7 +358,7 @@ unsafe fn parse_integer_sse42(s: &str) -> Option<u32> {
 }
 
 /// Safe wrapper around `parse_integer_separator_sse41` to use only during
-/// bencmark
+/// benchmark
 #[cfg(feature = "benchmark")]
 #[inline]
 pub fn safe_parse_integer_separator_sse41(s: &str, separator: u8, eol: u8) -> Option<u32> {
@@ -368,7 +368,7 @@ pub fn safe_parse_integer_separator_sse41(s: &str, separator: u8, eol: u8) -> Op
 }
 
 /// Safe wrapper around `parse_integer_separator_sse42` to use only during
-/// bencmark
+/// benchmark
 #[cfg(feature = "benchmark")]
 #[inline]
 pub fn safe_parse_integer_separator_sse42(s: &str, separator: u8, eol: u8) -> Option<u32> {
@@ -377,13 +377,39 @@ pub fn safe_parse_integer_separator_sse42(s: &str, separator: u8, eol: u8) -> Op
     }
 }
 
-/// Safe wrapper around `parse_integer_separator_avx2` to use only during
-/// bencmark
+/// Safe wrapper around `parse_integer_avx2` to use only during benchmark
 #[cfg(feature = "benchmark")]
 #[inline]
 pub fn safe_parse_integer_separator_avx2(s: &str, separator: u8, eol: u8) -> Option<u32> {
     unsafe {
         return parse_integer_separator_avx2(s, separator, eol);
+    }
+}
+
+/// Safe wrapper around `parse_integer_sse41` to use only during benchmark
+#[cfg(feature = "benchmark")]
+#[inline]
+pub fn safe_parse_integer_sse41(s: &str) -> Option<u32> {
+    unsafe {
+        return parse_integer_sse41(s);
+    }
+}
+
+/// Safe wrapper around `parse_integer_sse42` to use only during benchmark
+#[cfg(feature = "benchmark")]
+#[inline]
+pub fn safe_parse_integer_sse42(s: &str) -> Option<u32> {
+    unsafe {
+        return parse_integer_sse42(s);
+    }
+}
+
+/// Safe wrapper around `parse_integer_avx2` to use only during benchmark
+#[cfg(feature = "benchmark")]
+#[inline]
+pub fn safe_parse_integer_avx2(s: &str) -> Option<u32> {
+    unsafe {
+        return parse_integer_avx2(s);
     }
 }
 
