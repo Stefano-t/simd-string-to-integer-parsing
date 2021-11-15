@@ -18,31 +18,28 @@ fn bench_check_chars_validity_valid_fallback(b: &mut Bencher) {
     b.iter(|| fallback::check_all_chars_are_valid(black_box(&case)))
 }
 
+#[cfg(feature = "benchmark")]
 #[bench]
 fn bench_check_chars_validity_valid_sse41(b: &mut Bencher) {
     let case = "1234567890123456";
     b.bytes = case.len() as u64;
-    unsafe {
-        b.iter(|| sse41::check_all_chars_are_valid(black_box(&case)));
-    }
+    b.iter(|| safe_check_all_chars_are_valid_sse41(black_box(&case)));
 }
 
+#[cfg(feature = "benchmark")]
 #[bench]
 fn bench_check_chars_validity_valid_sse42(b: &mut Bencher) {
     let case = "1234567890123456";
     b.bytes = case.len() as u64;
-    unsafe {
-        b.iter(|| sse42::check_all_chars_are_valid(black_box(&case)));
-    }
+    b.iter(|| safe_check_all_chars_are_valid_sse42(black_box(&case)));
 }
 
+#[cfg(feature = "benchmark")]
 #[bench]
 fn bench_check_chars_validity_valid_avx(b: &mut Bencher) {
     let case = "12345678901234567890123456789012";
     b.bytes = case.len() as u64;
-    unsafe {
-        b.iter(|| avx::check_all_chars_are_valid(black_box(&case)));
-    }
+    b.iter(|| safe_check_all_chars_are_valid_avx(black_box(&case)));
 }
 
 // ===== `last_byte_without_separator` bench ===== 
@@ -54,25 +51,28 @@ fn bench_last_byte_without_separator_fallback(b: &mut Bencher) {
     b.iter(|| last_byte_without_separator(black_box(&case), b',', b'\n'))
 }
 
+#[cfg(feature = "benchmark")]
 #[bench]
 fn bench_last_byte_without_separator_sse41(b: &mut Bencher) {
     let case = "1234567,23456781";
     b.bytes = case.len() as u64;
-    unsafe { b.iter(|| sse41::last_byte_without_separator(black_box(&case), b',', b'\n')) }
+    b.iter(|| safe_last_byte_without_separator_sse41(black_box(&case), b',', b'\n'))
 }
 
 #[bench]
+#[cfg(feature = "benchmark")]
 fn bench_last_byte_without_separator_sse42(b: &mut Bencher) {
     let case = "0000001,23456789";
     b.bytes = case.len() as u64;
-    unsafe { b.iter(|| sse42::last_byte_without_separator(black_box(&case), b',', b'\n')) }
+    b.iter(|| safe_last_byte_without_separator_sse42(black_box(&case), b',', b'\n'))
 }
 
+#[cfg(feature = "benchmark")]
 #[bench]
 fn bench_last_byte_without_separator_avx(b: &mut Bencher) {
     let case = "1234567,234567810123456789012345";
     b.bytes = case.len() as u64;
-    unsafe { b.iter(|| avx::last_byte_without_separator(black_box(&case), b',', b'\n')) }
+    b.iter(|| safe_last_byte_without_separator_avx(black_box(&case), b',', b'\n'))
 }
 
 

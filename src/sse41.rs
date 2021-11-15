@@ -1,15 +1,17 @@
+//! SSE4.1 implementations for parsing a u32 from a string.
+
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
 /// Size of __m128i data type
 pub(super) const VECTOR_SIZE: usize = std::mem::size_of::<__m128i>();
 
+/// Checks that all the bytes are valid digits
 #[allow(dead_code)]
 #[inline]
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
-/// Checks that all the bytes are valid digits
-pub unsafe fn check_all_chars_are_valid(string: &str) -> bool {
+pub(super) unsafe fn check_all_chars_are_valid(string: &str) -> bool {
     if string.len() < VECTOR_SIZE {
         return crate::fallback::check_all_chars_are_valid(string);
     }
@@ -19,14 +21,14 @@ pub unsafe fn check_all_chars_are_valid(string: &str) -> bool {
     last_digit_byte(string) == 32 
 }
 
-#[inline]
-#[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "sse4.1")]
 /// Returns the index of the last digit in the string
 /// 
 /// In case of a string made composed by all digits, the SSE4.1 implementation
 /// without fallback call will return 32.
-pub unsafe fn last_digit_byte(s: &str) -> u32 {
+#[inline]
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "sse4.1")]
+pub(super) unsafe fn last_digit_byte(s: &str) -> u32 {
     if s.len() < VECTOR_SIZE {
         return crate::fallback::last_digit_byte(s);
     }
@@ -50,16 +52,23 @@ pub unsafe fn last_digit_byte(s: &str) -> u32 {
     _mm_movemask_epi8(valid_bytes_mask).trailing_zeros() 
 }
 
-#[inline]
-#[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "sse2")]
-/// Finds the last digit value in the string, and compute the parsing mask.
+/// Returns the index of the last char in the string different from `separator`
+/// and `eol`
 ///
 /// When the string is composed of all digits, then the returned index will be
 /// 32, i.e a parsing mask made up of all zeros.
 /// This method *assumes* that the string has exactly 16 chars and it's padded
 /// with zeros if necessary.
-pub unsafe fn last_byte_without_separator(string: &str, separator: u8, eol: u8) -> u32 {
+#[inline]
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "sse2")]
+pub(super) unsafe fn last_byte_without_separator(string: &str, separator: u8, eol: u8) -> u32 {
+    if string.len() < VECTOR_SIZE {
+        return crate::fallback::last_byte_without_separator(
+            string,
+            separator,
+            eol);
+    }
     // create costant registers
     let commas = _mm_set1_epi8(separator as i8);
     let newlines = _mm_set1_epi8(eol as i8);
@@ -82,12 +91,12 @@ pub unsafe fn last_byte_without_separator(string: &str, separator: u8, eol: u8) 
     movemask.trailing_zeros()
 }
 
-#[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "sse4.1")]
-/// Parses 8 integers from input string using SIMD instructons.
+/// Parses 8 integers from input string using SIMD instructions.
 ///
 /// The input string *must have* at least 16 chars, otherwise the internal
 /// operations will load memory outside the string bound.
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "sse4.1")]
 pub(super) unsafe fn parse_8_chars_simd(s: &str) -> u32 {
     let mut chunk = _mm_lddqu_si128(s.as_ptr() as *const _);
     // do not touch last 8 chars, since we don't know what they contain, avoiding
@@ -112,6 +121,10 @@ pub(super) unsafe fn parse_8_chars_simd(s: &str) -> u32 {
     chunk
 }
 
+/// Parses an u32 from the given string made of all numbers.
+///
+/// The input string *must have* at least 16 chars, otherwise the internal
+/// operations will load memory outside the string bound.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 pub(super) unsafe fn parse_integer_simd_all_numbers(s: &str) -> u32 {
@@ -134,7 +147,10 @@ pub(super) unsafe fn parse_integer_simd_all_numbers(s: &str) -> u32 {
     (((chunk & 0xffffffff) * 100000000) + (chunk >> 32)) as u32
 }
 
-#[cfg(target_arch = "x86_64")]
+/// Parses 5 integers from input string using SIMD instructions.
+///
+/// The input string *must have* at least 16 chars, otherwise the internal
+/// operations will load memory outside the string bound.#[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 pub(super) unsafe fn parse_5_chars_simd(s: &str) -> u32 {
     let mut chunk = _mm_loadu_si128(s.as_ptr() as *const _);
@@ -156,6 +172,10 @@ pub(super) unsafe fn parse_5_chars_simd(s: &str) -> u32 {
     _mm_cvtsi128_si32(chunk) as u32
 }
 
+/// Parses 4 integers from input string using SIMD instructions.
+///
+/// The input string *must have* at least 16 chars, otherwise the internal
+/// operations will load memory outside the string bound.#[cfg(target_arch = "x86_64")]
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 pub(super) unsafe fn parse_4_chars_simd(s: &str) -> u32 {
@@ -172,6 +192,10 @@ pub(super) unsafe fn parse_4_chars_simd(s: &str) -> u32 {
     _mm_cvtsi128_si32(chunk) as u32
 }
 
+/// Parses 6 integers from input string using SIMD instructions.
+///
+/// The input string *must have* at least 16 chars, otherwise the internal
+/// operations will load memory outside the string bound.#[cfg(target_arch = "x86_64")]
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 pub(super) unsafe fn parse_6_chars_simd(s: &str) -> u32 {
@@ -194,6 +218,10 @@ pub(super) unsafe fn parse_6_chars_simd(s: &str) -> u32 {
     _mm_cvtsi128_si32(chunk) as u32
 }
 
+/// Parses 7 integers from input string using SIMD instructions.
+///
+/// The input string *must have* at least 16 chars, otherwise the internal
+/// operations will load memory outside the string bound.#[cfg(target_arch = "x86_64")]
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 pub(super) unsafe fn parse_7_chars_simd(s: &str) -> u32 {
@@ -216,6 +244,10 @@ pub(super) unsafe fn parse_7_chars_simd(s: &str) -> u32 {
     _mm_cvtsi128_si32(chunk) as u32
 }
 
+/// Parses 9 integers from input string using SIMD instructions.
+///
+/// The input string *must have* at least 16 chars, otherwise the internal
+/// operations will load memory outside the string bound.#[cfg(target_arch = "x86_64")]
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 pub(super) unsafe fn parse_9_chars_simd(s: &str) -> u32 {
@@ -240,6 +272,10 @@ pub(super) unsafe fn parse_9_chars_simd(s: &str) -> u32 {
     (((chunk & 0x00000000ffffffff) * 10) + (chunk >> 32)) as u32
 }
 
+/// Parses 10 integers from input string using SIMD instructions.
+///
+/// The input string *must have* at least 16 chars, otherwise the internal
+/// operations will load memory outside the string bound.#[cfg(target_arch = "x86_64")]
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 pub(super) unsafe fn parse_10_chars_simd(s: &str) -> u32 {

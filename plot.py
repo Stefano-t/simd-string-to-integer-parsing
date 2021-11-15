@@ -107,7 +107,7 @@ def main():
         column_to_plot[4],
         f"simd library parsing ({task})",
     )
-    plt.tight_layout()
+    # plt.tight_layout()
     plt.show()
 
 

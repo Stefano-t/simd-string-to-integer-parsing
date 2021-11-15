@@ -1,3 +1,5 @@
+//! Fallback implementations for parsing an u32 from a string
+
 /// Parses an integer from the input string until a delimiter is encountered.
 ///
 /// By default, it uses ',' and '\n' as delimiter. To parse the digits, it

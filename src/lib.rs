@@ -1,4 +1,10 @@
+//! SIMD implementations for parsing an u32 from a string
 #![feature(stdsimd)]
+#![deny(missing_docs)]
+#![deny(clippy::missing_docs_in_private_items)]
+#![deny(clippy::missing_safety_doc)]
+#![warn(rustdoc::missing_doc_code_examples)]
+#![warn(clippy::todo)]
 
 pub mod avx;
 pub mod fallback;
@@ -89,6 +95,8 @@ pub fn last_digit_byte(s: &str) -> u32 {
     unsafe { LAST_DIGIT_BYTE(s) }
 }
 
+/// Pointer to `check_all_chars_are_valid` function supperted by the underlying
+/// cpu
 static mut CHECK_CHARS: unsafe fn(&str) -> bool = check_chars_dispatcher;
 
 /// Implements a single dispatch method to assign the appropiate function to the
@@ -203,6 +211,8 @@ pub fn parse_integer(s: &str) -> Option<u32> {
     unsafe { PARSE_INTEGER(s) }
 }
 
+/// Parses an u32 from the input string using AVX2 instrinics whenever is
+/// possibile
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 unsafe fn parse_integer_avx2(s: &str) -> Option<u32> {
@@ -229,6 +239,8 @@ unsafe fn parse_integer_avx2(s: &str) -> Option<u32> {
     }
 }
 
+/// Parses an u32 from the input string using AVX2 instrinics whenever is
+/// possibile up to the first occurence of `separator` or `eol`
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 unsafe fn parse_integer_separator_avx2(s: &str, separator: u8, eol: u8) -> Option<u32> {
@@ -255,6 +267,8 @@ unsafe fn parse_integer_separator_avx2(s: &str, separator: u8, eol: u8) -> Optio
     }
 }
 
+/// Parses an u32 from the input string using SSE4.1 instrinics whenever is
+/// possibile
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 unsafe fn parse_integer_sse41(s: &str) -> Option<u32> {
@@ -279,6 +293,8 @@ unsafe fn parse_integer_sse41(s: &str) -> Option<u32> {
     }
 }
 
+/// Parses an u32 from the input string using SSE4.1 instrinics whenever is
+/// possibile up to the first occurence of `separator` or `eol`
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 unsafe fn parse_integer_separator_sse41(s: &str, separator: u8, eol: u8) -> Option<u32> {
@@ -410,6 +426,66 @@ pub fn safe_parse_integer_sse42(s: &str) -> Option<u32> {
 pub fn safe_parse_integer_avx2(s: &str) -> Option<u32> {
     unsafe {
         return parse_integer_avx2(s);
+    }
+}
+
+/// Safe wrapper around `sse41::check_all_chars_are_valid` to use only during
+/// benchmark
+#[cfg(feature = "benchmark")]
+#[inline]
+pub fn safe_check_all_chars_are_valid_sse41(s: &str) -> bool {
+    unsafe {
+        return sse41::check_all_chars_are_valid(s);
+    }
+}
+
+/// Safe wrapper around `sse42::check_all_chars_are_valid` to use only during
+/// benchmark
+#[cfg(feature = "benchmark")]
+#[inline]
+pub fn safe_check_all_chars_are_valid_sse42(s: &str) -> bool {
+    unsafe {
+        return sse42::check_all_chars_are_valid(s);
+    }
+}
+
+/// Safe wrapper around `avx::check_all_chars_are_valid` to use only during
+/// benchmark
+#[cfg(feature = "benchmark")]
+#[inline]
+pub fn safe_check_all_chars_are_valid_avx(s: &str) -> bool {
+    unsafe {
+        return avx::check_all_chars_are_valid(s);
+    }
+}
+
+/// Safe wrapper around `sse41::last_byte_without_separator` to use only during
+/// benchmark
+#[cfg(feature = "benchmark")]
+#[inline]
+pub fn safe_last_byte_without_separator_sse41(s: &str, separator: u8, eol: u8) -> u32 {
+    unsafe {
+        return sse41::last_byte_without_separator(s, separator, eol);
+    }
+}
+
+/// Safe wrapper around `sse42::last_byte_without_separator` to use only during
+/// benchmark
+#[cfg(feature = "benchmark")]
+#[inline]
+pub fn safe_last_byte_without_separator_sse42(s: &str, separator: u8, eol: u8) -> u32 {
+    unsafe {
+        return sse42::last_byte_without_separator(s, separator, eol);
+    }
+}
+
+/// Safe wrapper around `avx::last_byte_without_separator` to use only during
+/// benchmark
+#[cfg(feature = "benchmark")]
+#[inline]
+pub fn safe_last_byte_without_separator_avx(s: &str, separator: u8, eol: u8) -> u32 {
+    unsafe {
+        return avx::last_byte_without_separator(s, separator, eol);
     }
 }
 

@@ -1,24 +1,26 @@
+//! AVX/AVX2 implementations for parsing an u32 from a string
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-pub(super) const VECTOR_SIZE: usize = std::mem::size_of::<__m256i>(); // 32
+/// Size of _m256i register (32)
+pub(super) const VECTOR_SIZE: usize = std::mem::size_of::<__m256i>();
 
+/// Checks that all the bytes are valid digits
 #[inline]
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-/// Checks that all the bytes are valid digits
-pub unsafe fn check_all_chars_are_valid(string: &str) -> bool {
+pub(super) unsafe fn check_all_chars_are_valid(string: &str) -> bool {
     if string.len() < VECTOR_SIZE {
         return crate::fallback::check_all_chars_are_valid(string);
     }
     last_digit_byte(string) == 32
 }
 
+/// Returns the index of the last digit in the string
 #[inline]
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-/// Returns the index of the last digit in the string
-pub unsafe fn last_digit_byte(string: &str) -> u32 {
+pub(super) unsafe fn last_digit_byte(string: &str) -> u32 {
     if string.len() < VECTOR_SIZE {
         return crate::fallback::last_digit_byte(string);
     }
@@ -44,10 +46,19 @@ pub unsafe fn last_digit_byte(string: &str) -> u32 {
     _mm256_movemask_epi8(valid_bytes_mask).trailing_zeros()
 }
 
+/// Returns the index of the last char in the string different from `separator`
+/// and `eol`.
 #[inline]
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-pub unsafe fn last_byte_without_separator(string: &str, separator: u8, eol: u8) -> u32 {
+pub(super) unsafe fn last_byte_without_separator(string: &str, separator: u8, eol: u8) -> u32 {
+    if string.len() < VECTOR_SIZE {
+        return crate::fallback::last_byte_without_separator(
+            string,
+            separator,
+            eol);
+    }
+
     // create costant registers
     let commas = _mm256_set1_epi8(separator as i8);
     let newlines = _mm256_set1_epi8(eol as i8);
@@ -70,6 +81,10 @@ pub unsafe fn last_byte_without_separator(string: &str, separator: u8, eol: u8) 
     movemask.trailing_zeros()
 }
 
+/// Parses 10 integers from input string using SIMD instructions.
+///
+/// The input string *must have* at least 32 chars, otherwise the internal
+/// operations will load memory outside the string bound.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 pub(super) unsafe fn parse_10_chars_simd(s: &str) -> u32 {
@@ -93,6 +108,10 @@ pub(super) unsafe fn parse_10_chars_simd(s: &str) -> u32 {
     (((chunk & 0x00000000ffffffff) * 100) + (chunk >> 32)) as u32
 }
 
+/// Parses 9 integers from input string using SIMD instructions.
+///
+/// The input string *must have* at least 32 chars, otherwise the internal
+/// operations will load memory outside the string bound.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 pub(super) unsafe fn parse_9_chars_simd(s: &str) -> u32 {
@@ -116,6 +135,10 @@ pub(super) unsafe fn parse_9_chars_simd(s: &str) -> u32 {
     (((chunk & 0x00000000ffffffff) * 10) + (chunk >> 32)) as u32
 }
 
+/// Parses 7 integers from input string using SIMD instructions.
+///
+/// The input string *must have* at least 32 chars, otherwise the internal
+/// operations will load memory outside the string bound.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 pub(super) unsafe fn parse_7_chars_simd(s: &str) -> u32 {
@@ -139,6 +162,10 @@ pub(super) unsafe fn parse_7_chars_simd(s: &str) -> u32 {
     _mm256_cvtsi256_si32(chunk) as u32
 }
 
+/// Parses 6 integers from input string using SIMD instructions.
+///
+/// The input string *must have* at least 32 chars, otherwise the internal
+/// operations will load memory outside the string bound.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 pub(super) unsafe fn parse_6_chars_simd(s: &str) -> u32 {
@@ -162,6 +189,10 @@ pub(super) unsafe fn parse_6_chars_simd(s: &str) -> u32 {
     _mm256_cvtsi256_si32(chunk) as u32
 }
 
+/// Parses 5 integers from input string using SIMD instructions.
+///
+/// The input string *must have* at least 32 chars, otherwise the internal
+/// operations will load memory outside the string bound.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 pub(super) unsafe fn parse_5_chars_simd(s: &str) -> u32 {
@@ -185,6 +216,10 @@ pub(super) unsafe fn parse_5_chars_simd(s: &str) -> u32 {
     _mm256_cvtsi256_si32(chunk) as u32
 }
 
+/// Parses 4 integers from input string using SIMD instructions.
+///
+/// The input string *must have* at least 32 chars, otherwise the internal
+/// operations will load memory outside the string bound.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 pub(super) unsafe fn parse_4_chars_simd(s: &str) -> u32 {
@@ -203,12 +238,12 @@ pub(super) unsafe fn parse_4_chars_simd(s: &str) -> u32 {
     _mm256_cvtsi256_si32(chunk) as u32
 }
 
-#[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "avx2")]
 /// Parses 8 integers from input string using SIMD instructons.
 ///
 /// The input string *must have* at least 32 chars, otherwise the internal
 /// operations will load memory outside the string bound.
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
 pub(super) unsafe fn parse_8_chars_simd(s: &str) -> u32 {
     let mut chunk = _mm256_loadu_si256(s.as_ptr() as *const _);
     let zeros = _mm256_set1_epi8(b'0' as i8);
@@ -235,9 +270,12 @@ pub(super) unsafe fn parse_8_chars_simd(s: &str) -> u32 {
     chunk
 }
 
+/// Parses an u32 from a string padded with zeros.
+/// 
+/// The input string *must have* at least 32 chars, otherwise the internal
+/// operations will load memory outside the string bound.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-/// Parses an u32 from a string padded with zeros.
 pub(super) unsafe fn parse_padded_integer_simd_all_numbers(s: &str) -> u32 {
     let mut chunk = _mm256_loadu_si256(s.as_ptr() as *const _);
     let zeros = _mm256_set1_epi8(b'0' as i8);
