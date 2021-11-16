@@ -1,22 +1,34 @@
 # simd-string-to-integer-parsing
 
-**WARNING! THIS LIBRARY IS A WORK IN PROGRESS**
-
 Optimized integer parsing, enabling SIMD instructions whenever is possible.
 
 ## Overview
 
-This library provides a faster implementation to parse an integer from a string. By now, it only supports `u32` parsing. The main method is `parse_integer`, which try to parse a `u32` from the input string; it also handles separators and terminating characters, specified by the user.
+This library provides a faster implementation to parse an integer from a string.
+By now, it only supports `u32` parsing. 
+There are two main methods: `parse_integer` parses an `u32` from the input
+string as far as there are digits in the string; the other method is
+`parse_integer_separator`, which parses an `u32` from the input string up the
+the first occurence of a user specified separator.
 
-Since this library internally uses SIMD intrinsics, they are only supported when the input string has length at least equal to 16. In the other cases, the parsing algorithm falls back to an iterative process.
+Since this library internally uses SIMD intrinsics, they are only supported when
+the input string has a sufficiend length: when SSE4.\* is detected, the string
+must have at least 16 chars, while for AVX/AVX2, a string of 32 chars is
+required. In the other cases, the parsing algorithms fall back to an iterative
+process.
 
 ## Supported architectures
 
-The provided implementations require x86_64 architectures. The code determines at runtime the best implementation to choose according to the underlying CPU. To get the performance benefits of this library, at least SSE4.1 instruction set is required. There are also SSE4.2 and AVX2 implementations available.
+The provided implementations require x86_64 architectures. The code determines
+at runtime the best implementation to choose according to the underlying CPU. To
+get the performance benefits of this library, at least SSE4.1 instruction set is
+required. There are also SSE4.2 and AVX2 implementations available.
 
 ## Some benchmarks
 
-The following benchmarks are generated via the `src/bin/bench/main.rs` file, reading the TSC register. Since they heavily depend on the hosting machine, here are the specs of the testing machine:
+The following benchmarks are generated via the `src/bin/bench/main.rs` file,
+reading the TSC register. Since they heavily depend on the hosting machine, here
+are the specs of the testing machine:
 
 ```console
 $ sudo journalctl --boot | grep 'kernel: tsc:' -i | cut -d' ' -f5-
@@ -43,22 +55,33 @@ And now some benchmarks:
 
 ### SSE4.1
 
-The string to parse has length 15 for both the naive parsing method (i.e. split the string at delimeter and parse the result with the built-in `parse` method) and the `parse_integer` without SIMD; while for the `parse_integer` with SIMD, the string has length 16, with the separator in the same place of the others. 
+The string to parse has length 15 for both the naive parsing method (i.e. split
+the string at delimeter and parse the result with the built-in `parse` method)
+and the `parse_integer` without SIMD; while for the `parse_integer` with SIMD,
+the string has length 16, with the separator in the same place of the others. 
 
 - minimum performance achived ![sse41 min performance](./img/sse41-min.png)
 - mean performance ![sse41 mean performance](./img/sse41-mean.png)
 
 ### AVX2
 
-The string to parse has length 31 for both the naive parsing method (i.e. split the string at delimeter and parse the result with the built-in `parse` method) and the `parse_integer` without SIMD; while for the `parse_integer` with SIMD, the string has length 31, with the separator in the same place of the others. 
+The string to parse has length 31 for both the naive parsing method (i.e. split
+the string at delimeter and parse the result with the built-in `parse` method)
+and the `parse_integer` without SIMD; while for the `parse_integer` with SIMD,
+the string has length 31, with the separator in the same place of the others. 
 
 - minimum performance achived ![avx2 min performance](./img/avx2-min.png)
-- mean performance ![avx2 mean performance](./img/sse41-mean.png)
+- mean performance ![avx2 mean performance](./img/avx2-mean.png)
 
 
 ## About code safety
 
-Working with CPU intrinsics is `unsafe`. The code should be robust enough to remove any kind of runtime exception or compile time error. To guarantee safety, all the intrinsic calls are surround by `#[cfg]` and `#[target_feature]` directives to compile and call functions only for supported CPUs. For further information and a better explanation, please refer to the Rust documentation https://doc.rust-lang.org/core/arch/index.html.
+Working with CPU intrinsics is `unsafe`. The code should be robust enough to
+remove any kind of runtime exception or compile time error. To guarantee safety,
+all the intrinsic calls are surrounded by `#[cfg]` and `#[target_feature]`
+directives to compile and call functions only for supported CPUs. For further
+information and a better explanation, please refer to the Rust documentation
+https://doc.rust-lang.org/core/arch/index.html.
 
 ## References
 
