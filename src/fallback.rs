@@ -161,26 +161,38 @@ mod tests {
     }
 
     #[test]
-    fn parse_integer_byte_iterator_no_separator() {
+    fn parse_integer_separator_no_separator() {
         let s = "12345678";
         assert_eq!(parse_integer_separator(s, SEP, EOL), Some(12345678));
     }
 
     #[test]
-    fn parse_integer_byte_iterator_separator() {
+    fn parse_integer_separator_separator() {
         let s = "123,45678";
         assert_eq!(parse_integer_separator(s, SEP, EOL), Some(123));
     }
 
     #[test]
-    fn parse_integer_byte_iterator_empty() {
+    fn parse_integer_separator_empty() {
         let s = "";
         assert_eq!(parse_integer_separator(s, SEP, EOL), None);
     }
 
     #[test]
-    fn parse_integer_byte_iterator_only_separators() {
+    fn parse_integer_separator_only_separators() {
         let s = "\n\n,,";
         assert_eq!(parse_integer_separator(s, SEP, EOL), None);
+    }
+
+    #[test]
+    fn parse_integer_empty() {
+        let s = "";
+        assert_eq!(parse_integer(s), None);
+    }
+
+    #[test]
+    fn parse_integer_max_u32() {
+        let s = format!("{}", u32::MAX);
+        assert_eq!(parse_integer(&s), Some(u32::MAX));
     }
 }
