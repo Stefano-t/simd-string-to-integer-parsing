@@ -90,12 +90,12 @@ fn last_digit_byte_dispatcher(s: &str) -> u32 {
     return fallback::last_digit_byte(s);
 }
 
-/// Returns the index of the last digit in the string 
+/// Returns the index of the last digit in the string
 pub fn last_digit_byte(s: &str) -> u32 {
     unsafe { LAST_DIGIT_BYTE(s) }
 }
 
-/// Pointer to `check_all_chars_are_valid` function supperted by the underlying
+/// Pointer to `check_all_chars_are_valid` function supported by the underlying
 /// cpu
 static mut CHECK_CHARS: unsafe fn(&str) -> bool = check_chars_dispatcher;
 
@@ -138,7 +138,7 @@ pub fn check_all_chars_are_valid(s: &str) -> bool {
 /// Pointer to `parse_integer_separator` supperted by the underlying CPU
 static mut PARSE_INTEGER_SEP: unsafe fn(&str, u8, u8) -> Option<u32> = parse_integer_sep_dispatcher;
 
-/// Assigns the correct implementation to the global variable PARSE_INTEGER
+/// Assigns the correct implementation to the global variable PARSE_INTEGER_SEP
 fn parse_integer_sep_dispatcher(s: &str, separator: u8, eol: u8) -> Option<u32> {
     #[cfg(target_arch = "x86_64")]
     {
@@ -220,7 +220,7 @@ unsafe fn parse_integer_avx2(s: &str) -> Option<u32> {
         return fallback::parse_integer(s);
     }
     // find the first occurence of a separator
-    let index = last_digit_byte(s);
+    let index = avx::last_digit_byte(s);
     match index {
         8 => return Some(avx::parse_8_chars_simd(s)),
         10 => return Some(avx::parse_10_chars_simd(s)),
@@ -248,7 +248,7 @@ unsafe fn parse_integer_separator_avx2(s: &str, separator: u8, eol: u8) -> Optio
         return fallback::parse_integer_separator(s, separator, eol);
     }
     // find the first occurence of a separator
-    let index = last_byte_without_separator(s, separator, eol);
+    let index = avx::last_byte_without_separator(s, separator, eol);
     match index {
         8 => return Some(avx::parse_8_chars_simd(s)),
         10 => return Some(avx::parse_10_chars_simd(s)),
@@ -276,7 +276,7 @@ unsafe fn parse_integer_sse41(s: &str) -> Option<u32> {
         return fallback::parse_integer(s);
     }
     // find the first occurence of a separator
-    let index = last_digit_byte(s);
+    let index = sse41::last_digit_byte(s);
     match index {
         8 => return Some(sse41::parse_8_chars_simd(s)),
         10 => return Some(sse41::parse_10_chars_simd(s)),
@@ -302,7 +302,7 @@ unsafe fn parse_integer_separator_sse41(s: &str, separator: u8, eol: u8) -> Opti
         return fallback::parse_integer_separator(s, separator, eol);
     }
     // find the first occurence of a separator
-    let index = last_byte_without_separator(s, separator, eol);
+    let index = sse41::last_byte_without_separator(s, separator, eol);
     match index {
         8 => return Some(sse41::parse_8_chars_simd(s)),
         10 => return Some(sse41::parse_10_chars_simd(s)),
@@ -318,6 +318,10 @@ unsafe fn parse_integer_separator_sse41(s: &str, separator: u8, eol: u8) -> Opti
         _ => return None,
     }
 }
+
+// ====================
+// benchmark only function
+// ====================
 
 /// SSE4.2 implementation for `parse_integer_separator` meant to be used only
 /// during benchamarking
@@ -497,7 +501,7 @@ mod tests {
 
     // ===== fallback tests =====
 
-    // ===== `parse_integer_separator` tests ===== 
+    // ===== `parse_integer_separator` tests =====
 
     #[test]
     fn parse_integer_separator_empty() {
@@ -529,7 +533,7 @@ mod tests {
         assert_eq!(parse_integer_separator(s, SEP, EOL), Some(112323));
     }
 
-    // ===== `parse_integer` tests ===== 
+    // ===== `parse_integer` tests =====
 
     #[test]
     fn parse_integer_empty() {
@@ -563,7 +567,7 @@ mod tests {
 
     // ===== AVX2 tests =====
 
-    // ===== `parse_integer_separator` tests ===== 
+    // ===== `parse_integer_separator` tests =====
 
     #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
     #[test]
@@ -607,7 +611,7 @@ mod tests {
         assert_eq!(parse_integer_separator(s, SEP, EOL), Some(12345678));
     }
 
-    // ===== `parse_integer` tests ===== 
+    // ===== `parse_integer` tests =====
 
     #[cfg(all(target_arch = "x86_64", any(target_feature = "avx2")))]
     #[test]
@@ -643,9 +647,10 @@ mod tests {
         let s = "00000000000000000000000012345678";
         assert_eq!(parse_integer(s), Some(12345678));
     }
+
     // ===== SSE4.1/2 tests =====
 
-    // ===== `parse_integer_separator` tests ===== 
+    // ===== `parse_integer_separator` tests =====
 
     #[cfg(all(
         target_arch = "x86_64",
@@ -697,7 +702,7 @@ mod tests {
         assert_eq!(parse_integer_separator(s, SEP, EOL), Some(12345678));
     }
 
-    // ===== `parse_integer` tests ===== 
+    // ===== `parse_integer` tests =====
 
     #[cfg(all(
         target_arch = "x86_64",
