@@ -29,3 +29,27 @@ name = "parse_integer"
 path = "fuzz_targets/parse_integer.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "check_validity"
+path = "fuzz_targets/check_validity.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "last_digit_byte"
+path = "fuzz_targets/last_digit_byte.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "last_byte_without_separator"
+path = "fuzz_targets/last_byte_without_separator.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "parse_integer_separator"
+path = "fuzz_targets/parse_integer_separator.rs"
+test = false
+doc = false
