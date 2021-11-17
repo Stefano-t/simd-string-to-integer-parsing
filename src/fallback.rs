@@ -2,16 +2,48 @@
 
 /// Parses an integer from the input string until a delimiter is encountered.
 ///
-/// By default, it uses ',' and '\n' as delimiter. To parse the digits, it
-/// exploits the fact that in ASCII encoding, digits are stored in the 4 least
-/// significant bits of the ASCII code. As example, consider '1': in binary is
-/// 0011-0001, and masking with 0x0f we get 0000-0001, which is 1.
+/// To parse the digits, it exploits the fact that in ASCII encoding, digits are
+/// stored in the 4 least significant bits of the ASCII code. As example,
+/// consider '1': in binary is 0011-0001, and masking with 0x0F we get
+/// 0000-0001, which is 1.
 #[inline]
 pub fn parse_integer_separator(s: &str, separator: u8, eol: u8) -> Option<u32> {
+    // Extract the iter
+    let mut iter = s.bytes()
+        .take_while(|&byte| (byte != separator) && (byte != eol));
+
+    // Control if there is at least one element
+    let first = iter.next()?;
+
+    // Fold the result and check for overflow
+    iter.try_fold((first & 0x0F) as u32, |a, c| {
+        if let Some(m) = a.checked_mul(10u32) {
+            Some(m + (c & 0x0F) as u32)
+        } else {
+            None
+        }
+    })
+}
+
+/// Parses an u32 from the input string up to the first occurence of `separator`
+/// or `eol`.
+///
+/// If the input string is empty, then the result will be 0.
+///
+/// # Safety
+///
+/// No kind of overflow check is performed inside this method: if the input
+/// string contains a number which doens't fit in a `u32`, a panic will be
+/// thrown.
+#[inline]
+pub unsafe fn parse_integer_separator_unchecked(
+    s: &str,
+    separator: u8,
+    eol: u8
+) -> u32 {
     s.bytes()
         .take_while(|&byte| (byte != separator) && (byte != eol))
-        .map(|x| (x & 0x0f) as u32)
-        .reduce(|a, c| a * 10 + c)
+        .fold(0u32, |a, c| (a * 10) + (c & 0x0F) as u32)
 }
 
 /// Parses an integer from the input string
@@ -22,10 +54,39 @@ pub fn parse_integer_separator(s: &str, separator: u8, eol: u8) -> Option<u32> {
 /// 0000-0001, which is 1.
 #[inline]
 pub fn parse_integer(s: &str) -> Option<u32> {
+    // Extract the iter
+    let mut iter = s.bytes()
+        .take_while(|&byte| (byte >= b'0') && (byte <= b'9'));
+
+    // Control if there is at least one element
+    let first = iter.next()?;
+
+    // Fold the result and check for overflow
+    iter.try_fold((first & 0x0F) as u32, |a, c| {
+        if let Some(m) = a.checked_mul(10u32) {
+            Some(m + (c & 0x0F) as u32)
+        } else {
+            None
+        }
+    })
+}
+
+/// Parses an u32 from the given string
+///
+/// This method doesn't check if the input string contains only digits, so make
+/// sure to supply a valid string. If the input string is empty, the result will
+/// be 0.
+///
+/// # Safety
+///
+/// No kind of overflow check is performed inside this method. So, if the input
+/// string contains a number which doesn't fit in a `u32`, a panic will be
+/// thrown. Furthermore, if the string contains other chars besides digits, they
+/// will parsed as valid digits, corrupting the result.
+#[inline]
+pub unsafe fn parse_integer_unchecked(s: &str) -> u32 {
     s.bytes()
-        .take_while(|&byte| (byte >= b'0') && (byte <= b'9'))
-        .map(|x| (x & 0x0f) as u32)
-        .reduce(|a, c| a * 10 + c)
+        .fold(0u32, |a, c| (a * 10) + (c & 0x0F) as u32)
 }
 
 /// Parses a limited amount of digits from the string

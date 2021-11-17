@@ -79,7 +79,7 @@
 //! measure the time needed to load the data from RAM or L2, L3 Caches.
 //!
 
-// this is useful to silent the compiler during benchmarking, otherwise some
+// This is useful to silent the compiler during benchmarking, otherwise some
 // functions are not seen during compilation
 #![allow(dead_code)]
 
