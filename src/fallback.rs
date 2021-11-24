@@ -18,7 +18,7 @@ pub fn parse_integer_separator(s: &str, separator: u8, eol: u8) -> Option<u32> {
     // Fold the result and check for overflow
     iter.try_fold((first & 0x0F) as u32, |a, c| {
         if let Some(m) = a.checked_mul(10u32) {
-            Some(m + (c & 0x0F) as u32)
+            m.checked_add((c & 0x0F) as u32)
         } else {
             None
         }
@@ -64,7 +64,7 @@ pub fn parse_integer(s: &str) -> Option<u32> {
     // Fold the result and check for overflow
     iter.try_fold((first & 0x0F) as u32, |a, c| {
         if let Some(m) = a.checked_mul(10u32) {
-            Some(m + (c & 0x0F) as u32)
+            m.checked_add((c & 0x0F) as u32)
         } else {
             None
         }
