@@ -5,17 +5,27 @@ Optimized integer parsing, enabling SIMD instructions whenever is possible.
 ## Overview
 
 This library provides a faster implementation to parse an integer from a string.
-By now, it only supports `u32` parsing. 
-There are two main methods: `parse_integer` parses an `u32` from the input
-string as far as there are digits in the string; the other method is
-`parse_integer_separator`, which parses an `u32` from the input string up the
-the first occurence of a user specified separator.
+By now, it only supports `u32` parsing.  There are two main methods:
+`parse_integer` parses an `u32` from the input string as far as there are digits
+in the string; the other method is `parse_integer_separator`, which parses an
+`u32` from the input string up to the the first occurence of a user specified
+separator.  There are also their unchecked counterparts, called
+`parse_integer_unchecked` and `parse_integer_separator_unchecked`, which are way
+faster than the previous versions, but they will be panic if the input string
+generates overflow errors.
 
-Since this library internally uses SIMD intrinsics, they are only supported when
-the input string has a sufficiend length: when SSE4.\* is detected, the string
-must have at least 16 chars, while for AVX/AVX2, a string of 32 chars is
-required. In the other cases, the parsing algorithms fall back to an iterative
-process.
+Note that both `parse_integer` and `parse_integer_separator` will use SIMD
+acceleration if the input string is conform to following requirements:
+
+    - input string as length at least 16 for SSE4.1\2 or 32 for AVX2;
+    - the number to parse is composed of between 1 to 9 digits.
+    
+For the unchecked versions, instead, the number to parse must have a number of
+digits between 1 and 10; in the other cases, a panic will be thrown.
+
+If the input string doesn't have a sufficient length, then the parsing algorithm
+will use an iterative process, both for checked and unchecked versions.
+
 
 ## Supported architectures
 

@@ -8,7 +8,7 @@ use test::{black_box, Bencher};
 
 // max integer with 32 bit is 4294967295
 
-// ===== `check_all_chars_are_valid` bench ===== 
+// ===== `check_all_chars_are_valid` bench =====
 
 #[bench]
 fn bench_check_chars_validity_valid_fallback(b: &mut Bencher) {
@@ -42,7 +42,7 @@ fn bench_check_chars_validity_valid_avx(b: &mut Bencher) {
     b.iter(|| safe_check_all_chars_are_valid_avx(black_box(&case)));
 }
 
-// ===== `last_byte_without_separator` bench ===== 
+// ===== `last_byte_without_separator` bench =====
 
 #[bench]
 fn bench_last_byte_without_separator_fallback(b: &mut Bencher) {
@@ -75,16 +75,13 @@ fn bench_last_byte_without_separator_avx(b: &mut Bencher) {
     b.iter(|| safe_last_byte_without_separator_avx(black_box(&case), b',', b'\n'))
 }
 
-
-// ===== `parse_integer_separator` bench ===== 
+// ===== `parse_integer_separator` bench =====
 
 #[bench]
 fn bench_parse_integer_separator_2_digits_fallback(b: &mut Bencher) {
     let case = "12";
     b.bytes = case.len() as u64;
-    unsafe {
-        b.iter(|| parse_integer_separator_unchecked(black_box(&case), b',', b'\n'))
-    }
+    unsafe { b.iter(|| parse_integer_separator_unchecked(black_box(&case), b',', b'\n')) }
 }
 
 #[bench]
@@ -98,7 +95,7 @@ fn bench_parse_integer_separator_checked_2_digits_fallback(b: &mut Bencher) {
 #[cfg(feature = "benchmark")]
 fn bench_parse_integer_separator_2_digits_sse41(b: &mut Bencher) {
     let case = "12,1111111111111";
-c    b.bytes = case.len() as u64;
+    b.bytes = case.len() as u64;
     b.iter(|| safe_parse_integer_separator_sse41(black_box(&case), b',', b'\n'))
 }
 
@@ -121,9 +118,7 @@ fn bench_standard_parse_2_digits(b: &mut Bencher) {
 fn bench_parse_integer_separator_5_digits_fallback(b: &mut Bencher) {
     let case = "12345";
     b.bytes = case.len() as u64;
-    unsafe {
-        b.iter(|| fallback::parse_integer_separator_unchecked(black_box(&case), b',', b'\n'))
-    }
+    unsafe { b.iter(|| parse_integer_separator_unchecked(black_box(&case), b',', b'\n')) }
 }
 
 #[bench]
@@ -160,9 +155,7 @@ fn bench_standard_parse_5_digits(b: &mut Bencher) {
 fn bench_parse_integer_separator_10_digits_fallback(b: &mut Bencher) {
     let case = "1234567890";
     b.bytes = case.len() as u64;
-    unsafe {
-        b.iter(|| parse_integer_separator_unchecked(black_box(&case), b',', b'\n'))
-    }
+    unsafe { b.iter(|| parse_integer_separator_unchecked(black_box(&case), b',', b'\n')) }
 }
 
 #[bench]
@@ -195,15 +188,13 @@ fn bench_standard_parse_10_digits(b: &mut Bencher) {
     b.iter(|| black_box(&case).parse::<u32>().unwrap())
 }
 
-// ===== `parse_integer` bench =====  
+// ===== `parse_integer` bench =====
 
 #[bench]
 fn bench_parse_integer_2_digits_fallback(b: &mut Bencher) {
     let case = "12";
     b.bytes = case.len() as u64;
-    unsafe {
-        b.iter(|| fallback::parse_integer_unchecked(black_box(&case)))
-    }
+    unsafe { b.iter(|| parse_integer_unchecked(black_box(&case))) }
 }
 
 #[bench]
@@ -212,7 +203,6 @@ fn bench_parse_integer_checked_2_digits_fallback(b: &mut Bencher) {
     b.bytes = case.len() as u64;
     b.iter(|| parse_integer(black_box(&case)))
 }
-
 
 #[bench]
 #[cfg(feature = "benchmark")]
@@ -234,9 +224,7 @@ fn bench_parse_integer_2_digits_avx(b: &mut Bencher) {
 fn bench_parse_integer_5_digits_fallback(b: &mut Bencher) {
     let case = "12345";
     b.bytes = case.len() as u64;
-    unsafe {
-        b.iter(|| fallback::parse_integer_unchecked(black_box(&case)))
-    }
+    unsafe { b.iter(|| parse_integer_unchecked(black_box(&case))) }
 }
 
 #[bench]
@@ -245,7 +233,6 @@ fn bench_parse_integer_checked_5_digits_fallback(b: &mut Bencher) {
     b.bytes = case.len() as u64;
     b.iter(|| parse_integer(black_box(&case)))
 }
-
 
 #[bench]
 #[cfg(feature = "benchmark")]
@@ -267,9 +254,7 @@ fn bench_parse_integer_5_digits_avx(b: &mut Bencher) {
 fn bench_parse_integer_10_digits_fallback(b: &mut Bencher) {
     let case = "1234567890";
     b.bytes = case.len() as u64;
-    unsafe {
-        b.iter(|| fallback::parse_integer_unchecked(black_box(&case)))
-    }
+    unsafe { b.iter(|| parse_integer_unchecked(black_box(&case))) }
 }
 
 #[bench]
@@ -279,6 +264,12 @@ fn bench_parse_integer_checked_10_digits_fallback(b: &mut Bencher) {
     b.iter(|| parse_integer(black_box(&case)))
 }
 
+#[bench]
+fn bench_parse_integer_checked_9_digits_fallback_simd(b: &mut Bencher) {
+    let case = "123456789,1000000111111111111111";
+    b.bytes = case.len() as u64;
+    b.iter(|| parse_integer(black_box(&case)))
+}
 
 #[bench]
 #[cfg(feature = "benchmark")]
