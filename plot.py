@@ -7,7 +7,7 @@ USAGE: python plot.py CSV [STAT]
 Generate benchmark plots from the given csv file
    - CSV    path to the csv to plot
    - STAT   one of min, mean, max (default to min)
-"""
+""".lstrip()
 
 
 def set_tsc_cycle_ax(ax, df, y1, label1, y2, label2, y3=None, label3=None):

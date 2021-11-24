@@ -62,7 +62,11 @@ pub(super) unsafe fn last_digit_byte(s: &str) -> u32 {
 #[inline]
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse2")]
-pub(super) unsafe fn last_byte_without_separator(string: &str, separator: u8, eol: u8) -> u32 {
+pub(super) unsafe fn last_byte_without_separator(
+    string: &str,
+    separator: u8,
+    eol: u8
+) -> u32 {
     if string.len() < VECTOR_SIZE {
         return crate::fallback::last_byte_without_separator(
             string,

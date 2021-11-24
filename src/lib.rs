@@ -52,7 +52,8 @@ fn last_byte_digit_dispatcher(s: &str, separator: u8, eol: u8) -> u32 {
     return fallback::last_byte_without_separator(s, separator, eol);
 }
 
-/// Returns the index of the last char in the string different from `separator` and `eol`
+/// Returns the index of the last char in the string different from `separator`
+/// and `eol`
 pub fn last_byte_without_separator(s: &str, separator: u8, eol: u8) -> u32 {
     unsafe { LAST_BYTE_DIGIT_SEP(s, separator, eol) }
 }
@@ -80,7 +81,8 @@ fn last_digit_byte_dispatcher(s: &str) -> u32 {
             }
         }
         if is_x86_feature_detected!("sse4.1") {
-            // repelace the global variable with the pointer to the sse41 function
+            // repelace the global variable with the pointer to the sse41
+            // function
             unsafe {
                 LAST_DIGIT_BYTE = sse41::last_digit_byte;
                 return sse41::last_digit_byte(s);
@@ -184,7 +186,6 @@ unsafe fn parse_integer_sep_dispatcher(s: &str, separator: u8, eol: u8) -> u32 {
 /// SIMD acceleration is used; in this case, the method resorts to an iterative
 /// process to parse the integer. If the string has at least 16 chars (or 32
 /// for AVX), then it can perform parsing exploiting the SIMD intrinsics.
-/// In case of empty string, the method will return 0.
 /// 
 /// # Safety
 ///
@@ -227,7 +228,6 @@ unsafe fn parse_integer_dispatcher(s: &str) -> u32 {
 /// SIMD acceleration is used; in this case, the method resorts to an iterative
 /// process to parse the integer. If the string has at least 16 chars (or 32
 /// for AVX), then it can perform parsing exploiting the SIMD intrinsics.
-/// If the input string is empty, the method will return 0.
 ///
 /// # Safety
 ///
@@ -264,7 +264,7 @@ unsafe fn parse_integer_avx2(s: &str) -> u32 {
         // internal processing techniques
         32 => return avx::parse_padded_integer_simd_all_numbers(s),
         // there is no number to parse
-        _ => return 0u32,
+        _ => panic!("No u32 to parse from input string!"),
     }
 }
 
@@ -292,7 +292,7 @@ unsafe fn parse_integer_separator_avx2(s: &str, separator: u8, eol: u8) -> u32 {
         // internal processing techniques
         32 => return avx::parse_padded_integer_simd_all_numbers(s),
         // there is no number to parse
-        _ => return 0u32,
+        _ => panic!("No u32 to parse from input string!"),
     }
 }
 
@@ -318,7 +318,7 @@ unsafe fn parse_integer_sse41(s: &str) -> u32 {
         // all the chars are numeric, maybe padded?
         32 => return sse41::parse_integer_simd_all_numbers(s),
         // there is no u32 to parse
-        _ => return 0u32,
+        _ => panic!("No u32 to parse from input string!"),
     }
 }
 
@@ -344,7 +344,7 @@ unsafe fn parse_integer_separator_sse41(s: &str, separator: u8, eol: u8) -> u32 
         // all the chars are numeric, maybe padded?
         32 => return sse41::parse_integer_simd_all_numbers(s),
         // there is no u32 to parse
-        _ => return 0u32,
+        _ => panic!("No u32 to parse from input string!"),
     }
 }
 
@@ -375,7 +375,7 @@ unsafe fn parse_integer_separator_sse42(s: &str, separator: u8, eol: u8) -> u32 
         // all the chars are numeric, maybe padded?
         32 => return sse41::parse_integer_simd_all_numbers(s),
         // there is no u32 to parse
-        _ => return 0u32,
+        _ => panic!("No u32 to parse from input string!"),
     }
 }
 
@@ -402,7 +402,7 @@ unsafe fn parse_integer_sse42(s: &str) -> u32 {
         // all the chars are numeric, maybe padded?
         32 => return sse41::parse_integer_simd_all_numbers(s),
         // there is no u32 to parse
-        _ => return 0u32,
+        _ => panic!("No u32 to parse from input string!"),
     }
 }
 
@@ -410,7 +410,11 @@ unsafe fn parse_integer_sse42(s: &str) -> u32 {
 /// benchmark
 #[cfg(feature = "benchmark")]
 #[inline]
-pub fn safe_parse_integer_separator_sse41(s: &str, separator: u8, eol: u8) -> u32 {
+pub fn safe_parse_integer_separator_sse41(
+    s: &str,
+    separator: u8,
+    eol: u8
+) -> u32 {
     unsafe {
         return parse_integer_separator_sse41(s, separator, eol);
     }
@@ -420,7 +424,11 @@ pub fn safe_parse_integer_separator_sse41(s: &str, separator: u8, eol: u8) -> u3
 /// benchmark
 #[cfg(feature = "benchmark")]
 #[inline]
-pub fn safe_parse_integer_separator_sse42(s: &str, separator: u8, eol: u8) -> u32 {
+pub fn safe_parse_integer_separator_sse42(
+    s: &str,
+    separator: u8,
+    eol: u8
+) -> u32 {
     unsafe {
         return parse_integer_separator_sse42(s, separator, eol);
     }
@@ -429,7 +437,11 @@ pub fn safe_parse_integer_separator_sse42(s: &str, separator: u8, eol: u8) -> u3
 /// Safe wrapper around `parse_integer_avx2` to use only during benchmark
 #[cfg(feature = "benchmark")]
 #[inline]
-pub fn safe_parse_integer_separator_avx2(s: &str, separator: u8, eol: u8) -> u32 {
+pub fn safe_parse_integer_separator_avx2(
+    s: &str,
+    separator: u8,
+    eol: u8
+) -> u32 {
     unsafe {
         return parse_integer_separator_avx2(s, separator, eol);
     }
@@ -496,7 +508,11 @@ pub fn safe_check_all_chars_are_valid_avx(s: &str) -> bool {
 /// benchmark
 #[cfg(feature = "benchmark")]
 #[inline]
-pub fn safe_last_byte_without_separator_sse41(s: &str, separator: u8, eol: u8) -> u32 {
+pub fn safe_last_byte_without_separator_sse41(
+    s: &str,
+    separator: u8,
+    eol: u8
+) -> u32 {
     unsafe {
         return sse41::last_byte_without_separator(s, separator, eol);
     }
@@ -506,7 +522,11 @@ pub fn safe_last_byte_without_separator_sse41(s: &str, separator: u8, eol: u8) -
 /// benchmark
 #[cfg(feature = "benchmark")]
 #[inline]
-pub fn safe_last_byte_without_separator_sse42(s: &str, separator: u8, eol: u8) -> u32 {
+pub fn safe_last_byte_without_separator_sse42(
+    s: &str,
+    separator: u8,
+    eol: u8
+) -> u32 {
     unsafe {
         return sse42::last_byte_without_separator(s, separator, eol);
     }
@@ -516,7 +536,11 @@ pub fn safe_last_byte_without_separator_sse42(s: &str, separator: u8, eol: u8) -
 /// benchmark
 #[cfg(feature = "benchmark")]
 #[inline]
-pub fn safe_last_byte_without_separator_avx(s: &str, separator: u8, eol: u8) -> u32 {
+pub fn safe_last_byte_without_separator_avx(
+    s: &str,
+    separator: u8,
+    eol: u8
+) -> u32 {
     unsafe {
         return avx::last_byte_without_separator(s, separator, eol);
     }
@@ -781,5 +805,31 @@ mod tests {
     fn parse_integer_sse4_all_digits_padded() {
         let s = "0000000012345678";
         assert_eq!(parse_integer(s), Some(12345678));
+    }
+
+    #[cfg(all(
+        target_arch = "x86_64",
+        any(target_feature = "sse4.1", target_feature = "sse4.2")
+    ))]
+    #[test]
+    #[should_panic]
+    fn parse_integer_sse4_unchecked_zero_digit() {
+        let s = ",,00000012345678";
+        unsafe {
+            parse_integer_unchecked(s);
+        }
+    }
+
+    #[cfg(all(
+        target_arch = "x86_64",
+        any(target_feature = "sse4.1", target_feature = "sse4.2")
+    ))]
+    #[test]
+    #[should_panic]
+    fn parse_integer_sse4_unchecked_more_than_10_digits() {
+        let s = "123445123456,8456";
+        unsafe {
+            parse_integer_unchecked(s);
+        }
     }
 }
