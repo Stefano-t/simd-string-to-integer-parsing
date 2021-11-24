@@ -266,8 +266,7 @@ pub(super) unsafe fn parse_8_chars_simd(s: &str) -> u32 {
     );
     chunk = _mm256_madd_epi16(chunk, mult);
 
-    let chunk = _mm256_cvtsi256_si32(chunk) as u32;
-    chunk
+    _mm256_cvtsi256_si32(chunk) as u32
 }
 
 /// Parses an u32 from a string padded with zeros.

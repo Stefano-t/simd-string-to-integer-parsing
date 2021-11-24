@@ -121,8 +121,7 @@ pub(super) unsafe fn parse_8_chars_simd(s: &str) -> u32 {
     let mult = _mm_set_epi16(1, 10000, 1, 10000, 1, 10000, 1, 10000);
     chunk = _mm_madd_epi16(chunk, mult);
 
-    let chunk = _mm_cvtsi128_si32(chunk) as u32;
-    chunk
+    _mm_cvtsi128_si32(chunk) as u32
 }
 
 /// Parses an u32 from the given string made of all numbers.

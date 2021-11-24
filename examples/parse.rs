@@ -28,7 +28,8 @@ fn main() {
         println!("None to parse");
     }
 
-    // Returns `None` also if the input string has a number that exceeds u32::MAX
+    // Returns `None` also if the input string has a number that
+    // exceeds u32::MAX
     let s = format!("{}", u32::MAX as u64 + 1);
     if let None = parse_integer(&s) {
         println!("None to parse");

@@ -56,7 +56,7 @@ pub unsafe fn parse_integer_separator_unchecked(
 pub fn parse_integer(s: &str) -> Option<u32> {
     // Extract the iter
     let mut iter = s.bytes()
-        .take_while(|&byte| (byte >= b'0') && (byte <= b'9'));
+        .take_while(|&byte| (b'0'..=b'9').contains(&byte));
 
     // Control if there is at least one element
     let first = iter.next()?;
@@ -100,7 +100,7 @@ pub fn parse_byte_iterator_limited(s: &str, chars_to_parse: u32) -> u32 {
 /// Checks if the string is composed of all numbers
 #[inline]
 pub fn check_all_chars_are_valid(s: &str) -> bool {
-    s.bytes().all(|b| b >= b'0' && b <= b'9')
+    s.bytes().all(|b| (b'0'..=b'9').contains(&b))
 }
 
 /// Returns the index of the last digit not equals to separator or eol
@@ -115,7 +115,7 @@ pub fn last_byte_without_separator(s: &str, separator: u8, eol: u8) -> u32 {
 #[inline]
 pub fn last_digit_byte(s: &str) -> u32 {
     s.bytes()
-        .take_while(|&b| (b >= b'0') && (b <= b'9'))
+        .take_while(|&b| (b'0'..=b'9').contains(&b))
         .count() as u32
 }
 

@@ -49,7 +49,7 @@ fn last_byte_digit_dispatcher(s: &str, separator: u8, eol: u8) -> u32 {
     unsafe {
         LAST_BYTE_DIGIT_SEP = fallback::last_byte_without_separator;
     }
-    return fallback::last_byte_without_separator(s, separator, eol);
+    fallback::last_byte_without_separator(s, separator, eol)
 }
 
 /// Returns the index of the last char in the string different from `separator`
@@ -93,7 +93,7 @@ fn last_digit_byte_dispatcher(s: &str) -> u32 {
     unsafe {
         LAST_DIGIT_BYTE = fallback::last_digit_byte;
     }
-    return fallback::last_digit_byte(s);
+    fallback::last_digit_byte(s)
 }
 
 /// Returns the index of the last digit in the string
@@ -133,7 +133,7 @@ fn check_chars_dispatcher(s: &str) -> bool {
     unsafe {
         CHECK_CHARS = fallback::check_all_chars_are_valid;
     }
-    return fallback::check_all_chars_are_valid(s);
+    fallback::check_all_chars_are_valid(s)
 }
 
 /// Deteremines if the string in made of all numbers
@@ -181,16 +181,16 @@ unsafe fn parse_integer_checked_avx2(s: &str) -> Option<u32> {
     }
     let index = avx::last_digit_byte(s);
     match index {
-        8 => return Some(avx::parse_8_chars_simd(s)),
-        9 => return Some(avx::parse_9_chars_simd(s)),
-        7 => return Some(avx::parse_7_chars_simd(s)),
-        6 => return Some(avx::parse_6_chars_simd(s)),
-        5 => return Some(avx::parse_5_chars_simd(s)),
-        4 => return Some(avx::parse_4_chars_simd(s)),
-        1..=3 => return Some(fallback::parse_byte_iterator_limited(s, index)),
+        8 => Some(avx::parse_8_chars_simd(s)),
+        9 => Some(avx::parse_9_chars_simd(s)),
+        7 => Some(avx::parse_7_chars_simd(s)),
+        6 => Some(avx::parse_6_chars_simd(s)),
+        5 => Some(avx::parse_5_chars_simd(s)),
+        4 => Some(avx::parse_4_chars_simd(s)),
+        1..=3 => Some(fallback::parse_byte_iterator_limited(s, index)),
         // Use the default implementation since we cannot guarantee overflow
         // check in the SIMD implementations
-        _ => return fallback::parse_integer(s),
+        _ => fallback::parse_integer(s),
     }
 }
 
@@ -206,16 +206,16 @@ unsafe fn parse_integer_checked_sse41(s: &str) -> Option<u32> {
     }
     let index = sse41::last_digit_byte(s);
     match index {
-        8 => return Some(sse41::parse_8_chars_simd(s)),
-        9 => return Some(sse41::parse_9_chars_simd(s)),
-        7 => return Some(sse41::parse_7_chars_simd(s)),
-        6 => return Some(sse41::parse_6_chars_simd(s)),
-        5 => return Some(sse41::parse_5_chars_simd(s)),
-        4 => return Some(sse41::parse_4_chars_simd(s)),
-        1..=3 => return Some(fallback::parse_byte_iterator_limited(s, index)),
+        8 => Some(sse41::parse_8_chars_simd(s)),
+        9 => Some(sse41::parse_9_chars_simd(s)),
+        7 => Some(sse41::parse_7_chars_simd(s)),
+        6 => Some(sse41::parse_6_chars_simd(s)),
+        5 => Some(sse41::parse_5_chars_simd(s)),
+        4 => Some(sse41::parse_4_chars_simd(s)),
+        1..=3 => Some(fallback::parse_byte_iterator_limited(s, index)),
         // Use the default implementation since we cannot guarantee overflow
         // check in the SIMD implementations
-        _ => return fallback::parse_integer(s),
+        _ => fallback::parse_integer(s),
     }
 }
 
@@ -268,16 +268,16 @@ unsafe fn parse_integer_sep_checked_avx2(s: &str, sep: u8, eol: u8) -> Option<u3
     }
     let index = avx::last_byte_without_separator(s, sep, eol);
     match index {
-        8 => return Some(avx::parse_8_chars_simd(s)),
-        9 => return Some(avx::parse_9_chars_simd(s)),
-        7 => return Some(avx::parse_7_chars_simd(s)),
-        6 => return Some(avx::parse_6_chars_simd(s)),
-        5 => return Some(avx::parse_5_chars_simd(s)),
-        4 => return Some(avx::parse_4_chars_simd(s)),
-        1..=3 => return Some(fallback::parse_byte_iterator_limited(s, index)),
+        8 => Some(avx::parse_8_chars_simd(s)),
+        9 => Some(avx::parse_9_chars_simd(s)),
+        7 => Some(avx::parse_7_chars_simd(s)),
+        6 => Some(avx::parse_6_chars_simd(s)),
+        5 => Some(avx::parse_5_chars_simd(s)),
+        4 => Some(avx::parse_4_chars_simd(s)),
+        1..=3 => Some(fallback::parse_byte_iterator_limited(s, index)),
         // Use the default implementation since we cannot guarantee overflow
         // check in the SIMD implementations
-        _ => return fallback::parse_integer_separator(s, sep, eol),
+        _ => fallback::parse_integer_separator(s, sep, eol),
     }
 }
 
@@ -294,16 +294,16 @@ unsafe fn parse_integer_sep_checked_sse41(s: &str, sep: u8, eol: u8) -> Option<u
     }
     let index = sse41::last_byte_without_separator(s, sep, eol);
     match index {
-        8 => return Some(sse41::parse_8_chars_simd(s)),
-        9 => return Some(sse41::parse_9_chars_simd(s)),
-        7 => return Some(sse41::parse_7_chars_simd(s)),
-        6 => return Some(sse41::parse_6_chars_simd(s)),
-        5 => return Some(sse41::parse_5_chars_simd(s)),
-        4 => return Some(sse41::parse_4_chars_simd(s)),
-        1..=3 => return Some(fallback::parse_byte_iterator_limited(s, index)),
+        8 => Some(sse41::parse_8_chars_simd(s)),
+        9 => Some(sse41::parse_9_chars_simd(s)),
+        7 => Some(sse41::parse_7_chars_simd(s)),
+        6 => Some(sse41::parse_6_chars_simd(s)),
+        5 => Some(sse41::parse_5_chars_simd(s)),
+        4 => Some(sse41::parse_4_chars_simd(s)),
+        1..=3 => Some(fallback::parse_byte_iterator_limited(s, index)),
         // Use the default implementation since we cannot guarantee overflow
         // check in the SIMD implementations
-        _ => return fallback::parse_integer_separator(s, sep, eol),
+        _ => fallback::parse_integer_separator(s, sep, eol),
     }
 }
 
@@ -405,18 +405,18 @@ unsafe fn parse_integer_avx2(s: &str) -> u32 {
     // find the first occurence of a separator
     let index = avx::last_digit_byte(s);
     match index {
-        8 => return avx::parse_8_chars_simd(s),
-        10 => return avx::parse_10_chars_simd(s),
-        9 => return avx::parse_9_chars_simd(s),
-        7 => return avx::parse_7_chars_simd(s),
-        6 => return avx::parse_6_chars_simd(s),
-        5 => return avx::parse_5_chars_simd(s),
-        4 => return avx::parse_4_chars_simd(s),
-        1..=3 => return fallback::parse_byte_iterator_limited(s, index),
+        8 => avx::parse_8_chars_simd(s),
+        10 => avx::parse_10_chars_simd(s),
+        9 => avx::parse_9_chars_simd(s),
+        7 => avx::parse_7_chars_simd(s),
+        6 => avx::parse_6_chars_simd(s),
+        5 => avx::parse_5_chars_simd(s),
+        4 => avx::parse_4_chars_simd(s),
+        1..=3 => fallback::parse_byte_iterator_limited(s, index),
         // all the chars are numeric, and they should be padded with 0s to get a
         // correct result. If not, the parsed number will not be correct due to
         // internal processing techniques
-        32 => return avx::parse_padded_integer_simd_all_numbers(s),
+        32 => avx::parse_padded_integer_simd_all_numbers(s),
         // there is no number to parse
         _ => panic!("No u32 to parse from input string!"),
     }
@@ -433,18 +433,18 @@ unsafe fn parse_integer_separator_avx2(s: &str, separator: u8, eol: u8) -> u32 {
     // find the first occurence of a separator
     let index = avx::last_byte_without_separator(s, separator, eol);
     match index {
-        8 => return avx::parse_8_chars_simd(s),
-        10 => return avx::parse_10_chars_simd(s),
-        9 => return avx::parse_9_chars_simd(s),
-        7 => return avx::parse_7_chars_simd(s),
-        6 => return avx::parse_6_chars_simd(s),
-        5 => return avx::parse_5_chars_simd(s),
-        4 => return avx::parse_4_chars_simd(s),
-        1..=3 => return fallback::parse_byte_iterator_limited(s, index),
+        8 => avx::parse_8_chars_simd(s),
+        10 => avx::parse_10_chars_simd(s),
+        9 => avx::parse_9_chars_simd(s),
+        7 => avx::parse_7_chars_simd(s),
+        6 => avx::parse_6_chars_simd(s),
+        5 => avx::parse_5_chars_simd(s),
+        4 => avx::parse_4_chars_simd(s),
+        1..=3 => fallback::parse_byte_iterator_limited(s, index),
         // all the chars are numeric, and they should be padded with 0s to get a
         // correct result. If not, the parsed number will not be correct due to
         // internal processing techniques
-        32 => return avx::parse_padded_integer_simd_all_numbers(s),
+        32 => avx::parse_padded_integer_simd_all_numbers(s),
         // there is no number to parse
         _ => panic!("No u32 to parse from input string!"),
     }
@@ -461,16 +461,16 @@ unsafe fn parse_integer_sse41(s: &str) -> u32 {
     // find the first occurence of a separator
     let index = sse41::last_digit_byte(s);
     match index {
-        8 => return sse41::parse_8_chars_simd(s),
-        10 => return sse41::parse_10_chars_simd(s),
-        9 => return sse41::parse_9_chars_simd(s),
-        7 => return sse41::parse_7_chars_simd(s),
-        6 => return sse41::parse_6_chars_simd(s),
-        5 => return sse41::parse_5_chars_simd(s),
-        4 => return sse41::parse_4_chars_simd(s),
-        1..=3 => return fallback::parse_byte_iterator_limited(s, index),
+        8 => sse41::parse_8_chars_simd(s),
+        10 => sse41::parse_10_chars_simd(s),
+        9 => sse41::parse_9_chars_simd(s),
+        7 => sse41::parse_7_chars_simd(s),
+        6 => sse41::parse_6_chars_simd(s),
+        5 => sse41::parse_5_chars_simd(s),
+        4 => sse41::parse_4_chars_simd(s),
+        1..=3 => fallback::parse_byte_iterator_limited(s, index),
         // all the chars are numeric, maybe padded?
-        32 => return sse41::parse_integer_simd_all_numbers(s),
+        32 => sse41::parse_integer_simd_all_numbers(s),
         // there is no u32 to parse
         _ => panic!("No u32 to parse from input string!"),
     }
@@ -487,16 +487,16 @@ unsafe fn parse_integer_separator_sse41(s: &str, separator: u8, eol: u8) -> u32 
     // find the first occurence of a separator
     let index = sse41::last_byte_without_separator(s, separator, eol);
     match index {
-        8 => return sse41::parse_8_chars_simd(s),
-        10 => return sse41::parse_10_chars_simd(s),
-        9 => return sse41::parse_9_chars_simd(s),
-        7 => return sse41::parse_7_chars_simd(s),
-        6 => return sse41::parse_6_chars_simd(s),
-        5 => return sse41::parse_5_chars_simd(s),
-        4 => return sse41::parse_4_chars_simd(s),
-        1..=3 => return fallback::parse_byte_iterator_limited(s, index),
+        8 => sse41::parse_8_chars_simd(s),
+        10 => sse41::parse_10_chars_simd(s),
+        9 => sse41::parse_9_chars_simd(s),
+        7 => sse41::parse_7_chars_simd(s),
+        6 => sse41::parse_6_chars_simd(s),
+        5 => sse41::parse_5_chars_simd(s),
+        4 => sse41::parse_4_chars_simd(s),
+        1..=3 => fallback::parse_byte_iterator_limited(s, index),
         // all the chars are numeric, maybe padded?
-        32 => return sse41::parse_integer_simd_all_numbers(s),
+        32 => sse41::parse_integer_simd_all_numbers(s),
         // there is no u32 to parse
         _ => panic!("No u32 to parse from input string!"),
     }
