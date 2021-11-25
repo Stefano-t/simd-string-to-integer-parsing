@@ -11,7 +11,7 @@ use test::{black_box, Bencher};
 // ===== `check_all_chars_are_valid` bench =====
 
 #[bench]
-fn bench_check_chars_validity_valid_fallback(b: &mut Bencher) {
+fn bench_check_chars_validity_fallback(b: &mut Bencher) {
     let case = "000000123456789";
     b.bytes = case.len() as u64;
     assert!(check_all_chars_are_valid(&case));
@@ -20,7 +20,7 @@ fn bench_check_chars_validity_valid_fallback(b: &mut Bencher) {
 
 #[cfg(feature = "benchmark")]
 #[bench]
-fn bench_check_chars_validity_valid_sse41(b: &mut Bencher) {
+fn bench_check_chars_validity_sse41(b: &mut Bencher) {
     let case = "1234567890123456";
     b.bytes = case.len() as u64;
     b.iter(|| safe_check_all_chars_are_valid_sse41(black_box(&case)));
@@ -28,7 +28,7 @@ fn bench_check_chars_validity_valid_sse41(b: &mut Bencher) {
 
 #[cfg(feature = "benchmark")]
 #[bench]
-fn bench_check_chars_validity_valid_sse42(b: &mut Bencher) {
+fn bench_check_chars_validity_sse42(b: &mut Bencher) {
     let case = "1234567890123456";
     b.bytes = case.len() as u64;
     b.iter(|| safe_check_all_chars_are_valid_sse42(black_box(&case)));
@@ -36,7 +36,7 @@ fn bench_check_chars_validity_valid_sse42(b: &mut Bencher) {
 
 #[cfg(feature = "benchmark")]
 #[bench]
-fn bench_check_chars_validity_valid_avx(b: &mut Bencher) {
+fn bench_check_chars_validity_avx(b: &mut Bencher) {
     let case = "12345678901234567890123456789012";
     b.bytes = case.len() as u64;
     b.iter(|| safe_check_all_chars_are_valid_avx(black_box(&case)));
@@ -166,6 +166,13 @@ fn bench_parse_integer_separator_checked_10_digits_fallback(b: &mut Bencher) {
 }
 
 #[bench]
+fn bench_parse_integer_separator_checked_9_digits_simd(b: &mut Bencher) {
+    let case = "123456789,1111111111111111111111";
+    b.bytes = case.len() as u64;
+    b.iter(|| parse_integer_separator(black_box(&case), b',', b'\n'))
+}
+
+#[bench]
 #[cfg(feature = "benchmark")]
 fn bench_parse_integer_separator_10_digits_sse41(b: &mut Bencher) {
     let case = "1234512345,67890";
@@ -265,7 +272,7 @@ fn bench_parse_integer_checked_10_digits_fallback(b: &mut Bencher) {
 }
 
 #[bench]
-fn bench_parse_integer_checked_9_digits_fallback_simd(b: &mut Bencher) {
+fn bench_parse_integer_checked_9_digits_simd(b: &mut Bencher) {
     let case = "123456789,1000000111111111111111";
     b.bytes = case.len() as u64;
     b.iter(|| parse_integer(black_box(&case)))

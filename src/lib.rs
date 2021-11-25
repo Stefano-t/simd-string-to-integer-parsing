@@ -12,10 +12,10 @@ pub mod fallback;
 pub mod sse41;
 pub mod sse42;
 
-/// Holds the pointer to the function supporeted by the underlying CPU
+/// Holds the pointer to the function supported by the underlying CPU
 static mut LAST_BYTE_DIGIT_SEP: unsafe fn(&str, u8, u8) -> u32 = last_byte_digit_dispatcher;
 
-/// Implements a single dispatch method to assign the appropiate function to the
+/// Implements a single dispatch method to assign the appropriate function to the
 /// global variable LAST_BYTE_DIGIT
 fn last_byte_digit_dispatcher(s: &str, separator: u8, eol: u8) -> u32 {
     #[cfg(target_arch = "x86_64")]
@@ -173,12 +173,14 @@ fn parse_integer_checked_dispatcher(s: &str) -> Option<u32> {
 ///
 /// If the input string is empty or the parsing function encounters an overflow,
 /// then `None` will be returned.
+#[inline]
 unsafe fn parse_integer_checked_avx2(s: &str) -> Option<u32> {
     // Go back to fallback implementation if the string doesn't have the correct
     // size
     if s.len() < avx::VECTOR_SIZE {
         return fallback::parse_integer(s);
     }
+
     let index = avx::last_digit_byte(s);
     match index {
         8 => Some(avx::parse_8_chars_simd(s)),
@@ -189,15 +191,17 @@ unsafe fn parse_integer_checked_avx2(s: &str) -> Option<u32> {
         4 => Some(avx::parse_4_chars_simd(s)),
         1..=3 => Some(fallback::parse_byte_iterator_limited(s, index)),
         // Use the default implementation since we cannot guarantee overflow
-        // check in the SIMD implementations
+        // check in the SIMD implementations. This also holds for padded
+        // strings.
         _ => fallback::parse_integer(s),
     }
 }
 
-/// Parses and `u32` from the input string when possibile using AVX2 instrinics.
+/// Parses and `u32` from the input string when possible using AVX2 intrinsics.
 ///
 /// If the input string is empty or the parsing function encounters an overflow,
 /// then `None` will be returned.
+#[inline]
 unsafe fn parse_integer_checked_sse41(s: &str) -> Option<u32> {
     // Go back to fallback implementation if the string doesn't have the correct
     // size
@@ -214,19 +218,20 @@ unsafe fn parse_integer_checked_sse41(s: &str) -> Option<u32> {
         4 => Some(sse41::parse_4_chars_simd(s)),
         1..=3 => Some(fallback::parse_byte_iterator_limited(s, index)),
         // Use the default implementation since we cannot guarantee overflow
-        // check in the SIMD implementations
+        // check in the SIMD implementations. This also holds for padded
+        // strings.
         _ => fallback::parse_integer(s),
     }
 }
 
 /// Parses an `u32` from the input string.
 ///
-/// In case of empty string or aritmethic overlfow, it will return None.
+/// In case of empty string or arithmetic overflow, it will return None.
 pub fn parse_integer(s: &str) -> Option<u32> {
     unsafe { PARSE_INTEGER(s) }
 }
 
-/// Pointer to `parse_integer` supperted by the underlying CPU
+/// Pointer to `parse_integer` supported by the underlying CPU
 static mut PARSE_INTEGER_SEP: unsafe fn(&str, u8, u8) -> Option<u32> =
     parse_integer_sep_checked_dispatcher;
 
@@ -281,7 +286,7 @@ unsafe fn parse_integer_sep_checked_avx2(s: &str, sep: u8, eol: u8) -> Option<u3
     }
 }
 
-/// Parses and `u32` from the input string when possibile using AVX2 instrinics.
+/// Parses and `u32` from the input string when possible using AVX2 intrinsics.
 ///
 /// If the input string is empty or the parsing function encounters an overflow,
 /// then `None` will be returned.
@@ -307,16 +312,16 @@ unsafe fn parse_integer_sep_checked_sse41(s: &str, sep: u8, eol: u8) -> Option<u
     }
 }
 
-/// Parses an `u32` from the input string up to the first occurence of
+/// Parses an `u32` from the input string up to the first occurrence of
 /// `separator` or `eol`.
 ///
-/// In case of empty string, aritmethic overlfow or absence of number to parse,
+/// In case of empty string, arithmetic overflow or absence of number to parse,
 /// it will return None.
 pub fn parse_integer_separator(s: &str, separator: u8, eol: u8) -> Option<u32> {
     unsafe { PARSE_INTEGER_SEP(s, separator, eol) }
 }
 
-/// Pointer to `parse_integer_separator` supperted by the underlying CPU
+/// Pointer to `parse_integer_separator` supported by the underlying CPU
 static mut PARSE_INTEGER_SEP_UN: unsafe fn(&str, u8, u8) -> u32 = parse_integer_sep_dispatcher;
 
 /// Assigns the correct implementation to the global variable
@@ -347,7 +352,7 @@ unsafe fn parse_integer_sep_dispatcher(s: &str, separator: u8, eol: u8) -> u32 {
 ///
 /// # Safety
 ///
-/// This method doens't check any kind of arithmetic overflow: if the input
+/// This method doesn't check any kind of arithmetic overflow: if the input
 /// string contains a number which doesn't fit into an `u32`, then a panic will
 /// be thrown.
 #[inline]
@@ -385,7 +390,7 @@ unsafe fn parse_integer_dispatcher(s: &str) -> u32 {
 ///
 /// # Safety
 ///
-/// This method doens't check any kind of arithmetic overflow: if the input
+/// This method doesn't check any kind of arithmetic overflow: if the input
 /// string contains a number which doesn't fit into an `u32`, then a panic will
 /// be thrown. Furthermore, if the string contains other chars than numbers,
 /// they will be parsed as regular digit, invalidating the final number.
@@ -394,8 +399,8 @@ pub unsafe fn parse_integer_unchecked(s: &str) -> u32 {
     PARSE_INTEGER_UN(s)
 }
 
-/// Parses an u32 from the input string using AVX2 instrinics whenever is
-/// possibile
+/// Parses an u32 from the input string using AVX2 intrinsics whenever is
+/// possible
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 unsafe fn parse_integer_avx2(s: &str) -> u32 {
@@ -422,8 +427,8 @@ unsafe fn parse_integer_avx2(s: &str) -> u32 {
     }
 }
 
-/// Parses an u32 from the input string using AVX2 instrinics whenever is
-/// possibile up to the first occurence of `separator` or `eol`
+/// Parses an u32 from the input string using AVX2 intrinsics whenever is
+/// possible up to the first occurence of `separator` or `eol`
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 unsafe fn parse_integer_separator_avx2(s: &str, separator: u8, eol: u8) -> u32 {
@@ -450,8 +455,8 @@ unsafe fn parse_integer_separator_avx2(s: &str, separator: u8, eol: u8) -> u32 {
     }
 }
 
-/// Parses an u32 from the input string using SSE4.1 instrinics whenever is
-/// possibile
+/// Parses an u32 from the input string using SSE4.1 intrinsics whenever is
+/// possible
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 unsafe fn parse_integer_sse41(s: &str) -> u32 {
@@ -476,8 +481,8 @@ unsafe fn parse_integer_sse41(s: &str) -> u32 {
     }
 }
 
-/// Parses an u32 from the input string using SSE4.1 instrinics whenever is
-/// possibile up to the first occurence of `separator` or `eol`
+/// Parses an u32 from the input string using SSE4.1 intrinsics whenever is
+/// possible up to the first occurence of `separator` or `eol`
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 unsafe fn parse_integer_separator_sse41(s: &str, separator: u8, eol: u8) -> u32 {
@@ -507,7 +512,7 @@ unsafe fn parse_integer_separator_sse41(s: &str, separator: u8, eol: u8) -> u32 
 // ====================
 
 /// SSE4.2 implementation for `parse_integer_separator` meant to be used only
-/// during benchamarking
+/// during benchamark
 #[cfg(feature = "benchmark")]
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.2")]
@@ -534,7 +539,7 @@ unsafe fn parse_integer_separator_sse42(s: &str, separator: u8, eol: u8) -> u32 
 }
 
 /// SSE4.2 implementation for `parse_integer` meant to be used only during
-/// benchamarking
+/// benchamark
 #[cfg(feature = "benchmark")]
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.2")]
