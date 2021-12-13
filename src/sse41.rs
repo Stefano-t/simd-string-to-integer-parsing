@@ -153,7 +153,8 @@ pub(super) unsafe fn parse_integer_simd_all_numbers(s: &str) -> u32 {
 /// Parses 5 integers from input string using SIMD instructions.
 ///
 /// The input string *must have* at least 16 chars, otherwise the internal
-/// operations will load memory outside the string bound.#[cfg(target_arch = "x86_64")]
+/// operations will load memory outside the string bound.
+#[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 pub(super) unsafe fn parse_5_chars_simd(s: &str) -> u32 {
     let mut chunk = _mm_loadu_si128(s.as_ptr() as *const _);
@@ -178,7 +179,7 @@ pub(super) unsafe fn parse_5_chars_simd(s: &str) -> u32 {
 /// Parses 4 integers from input string using SIMD instructions.
 ///
 /// The input string *must have* at least 16 chars, otherwise the internal
-/// operations will load memory outside the string bound.#[cfg(target_arch = "x86_64")]
+/// operations will load memory outside the string bound.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 pub(super) unsafe fn parse_4_chars_simd(s: &str) -> u32 {
@@ -198,7 +199,7 @@ pub(super) unsafe fn parse_4_chars_simd(s: &str) -> u32 {
 /// Parses 6 integers from input string using SIMD instructions.
 ///
 /// The input string *must have* at least 16 chars, otherwise the internal
-/// operations will load memory outside the string bound.#[cfg(target_arch = "x86_64")]
+/// operations will load memory outside the string bound.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 pub(super) unsafe fn parse_6_chars_simd(s: &str) -> u32 {
@@ -224,7 +225,7 @@ pub(super) unsafe fn parse_6_chars_simd(s: &str) -> u32 {
 /// Parses 7 integers from input string using SIMD instructions.
 ///
 /// The input string *must have* at least 16 chars, otherwise the internal
-/// operations will load memory outside the string bound.#[cfg(target_arch = "x86_64")]
+/// operations will load memory outside the string bound.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 pub(super) unsafe fn parse_7_chars_simd(s: &str) -> u32 {
@@ -250,7 +251,7 @@ pub(super) unsafe fn parse_7_chars_simd(s: &str) -> u32 {
 /// Parses 9 integers from input string using SIMD instructions.
 ///
 /// The input string *must have* at least 16 chars, otherwise the internal
-/// operations will load memory outside the string bound.#[cfg(target_arch = "x86_64")]
+/// operations will load memory outside the string bound.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 pub(super) unsafe fn parse_9_chars_simd(s: &str) -> u32 {
@@ -278,7 +279,7 @@ pub(super) unsafe fn parse_9_chars_simd(s: &str) -> u32 {
 /// Parses 10 integers from input string using SIMD instructions.
 ///
 /// The input string *must have* at least 16 chars, otherwise the internal
-/// operations will load memory outside the string bound.#[cfg(target_arch = "x86_64")]
+/// operations will load memory outside the string bound.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "sse4.1")]
 pub(super) unsafe fn parse_10_chars_simd(s: &str) -> u32 {

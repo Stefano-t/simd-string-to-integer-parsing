@@ -1,4 +1,5 @@
 //! AVX/AVX2 implementations for parsing an u32 from a string
+
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 

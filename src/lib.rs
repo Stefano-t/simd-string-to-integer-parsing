@@ -12,6 +12,23 @@ pub mod fallback;
 pub mod sse41;
 pub mod sse42;
 
+// -----------------------------------------------------------------------------
+//                         Dispatchers for the library API
+//
+// The following methods implement a single dispatch technique to assign at
+// runtime the best implementation available based on the underlying CPU.
+// 
+// All the methods follow the same structure:
+//   1. Declare a function pointer, initialized with the dispatcher function;
+//   2. Implement the dispatcher function;
+//   3. Declare the main API function, which will call the function pointer
+//      declared in step 1.
+//
+// When the API function is called for the first time, it will call the
+// dispatcher function: internally, it will reassign the function pointer to the
+// detected implementation of the current architecture.
+// -----------------------------------------------------------------------------
+
 /// Holds the pointer to the function supported by the underlying CPU
 static mut LAST_BYTE_DIGIT_SEP: unsafe fn(&str, u8, u8) -> u32 = last_byte_digit_dispatcher;
 
@@ -169,61 +186,6 @@ fn parse_integer_checked_dispatcher(s: &str) -> Option<u32> {
     fallback::parse_integer(s)
 }
 
-/// Parses and `u32` from the input string when possibile using AVX2 instrinics.
-///
-/// If the input string is empty or the parsing function encounters an overflow,
-/// then `None` will be returned.
-#[inline]
-unsafe fn parse_integer_checked_avx2(s: &str) -> Option<u32> {
-    // Go back to fallback implementation if the string doesn't have the correct
-    // size
-    if s.len() < avx::VECTOR_SIZE {
-        return fallback::parse_integer(s);
-    }
-
-    let index = avx::last_digit_byte(s);
-    match index {
-        8 => Some(avx::parse_8_chars_simd(s)),
-        9 => Some(avx::parse_9_chars_simd(s)),
-        7 => Some(avx::parse_7_chars_simd(s)),
-        6 => Some(avx::parse_6_chars_simd(s)),
-        5 => Some(avx::parse_5_chars_simd(s)),
-        4 => Some(avx::parse_4_chars_simd(s)),
-        1..=3 => Some(fallback::parse_byte_iterator_limited(s, index)),
-        // Use the default implementation since we cannot guarantee overflow
-        // check in the SIMD implementations. This also holds for padded
-        // strings.
-        _ => fallback::parse_integer(s),
-    }
-}
-
-/// Parses and `u32` from the input string when possible using AVX2 intrinsics.
-///
-/// If the input string is empty or the parsing function encounters an overflow,
-/// then `None` will be returned.
-#[inline]
-unsafe fn parse_integer_checked_sse41(s: &str) -> Option<u32> {
-    // Go back to fallback implementation if the string doesn't have the correct
-    // size
-    if s.len() < sse41::VECTOR_SIZE {
-        return fallback::parse_integer(s);
-    }
-    let index = sse41::last_digit_byte(s);
-    match index {
-        8 => Some(sse41::parse_8_chars_simd(s)),
-        9 => Some(sse41::parse_9_chars_simd(s)),
-        7 => Some(sse41::parse_7_chars_simd(s)),
-        6 => Some(sse41::parse_6_chars_simd(s)),
-        5 => Some(sse41::parse_5_chars_simd(s)),
-        4 => Some(sse41::parse_4_chars_simd(s)),
-        1..=3 => Some(fallback::parse_byte_iterator_limited(s, index)),
-        // Use the default implementation since we cannot guarantee overflow
-        // check in the SIMD implementations. This also holds for padded
-        // strings.
-        _ => fallback::parse_integer(s),
-    }
-}
-
 /// Parses an `u32` from the input string.
 ///
 /// In case of empty string or arithmetic overflow, it will return None.
@@ -258,58 +220,6 @@ fn parse_integer_sep_checked_dispatcher(s: &str, sep: u8, eol: u8) -> Option<u32
         PARSE_INTEGER_SEP = fallback::parse_integer_separator;
     }
     fallback::parse_integer_separator(s, sep, eol)
-}
-
-/// Parses and `u32` from the input string when possibile using AVX2 instrinics.
-///
-/// If the input string is empty or the parsing function encounters an overflow,
-/// then `None` will be returned.
-#[inline]
-unsafe fn parse_integer_sep_checked_avx2(s: &str, sep: u8, eol: u8) -> Option<u32> {
-    // Go back to fallback implementation if the string doesn't have the correct
-    // size
-    if s.len() < avx::VECTOR_SIZE {
-        return fallback::parse_integer_separator(s, sep, eol);
-    }
-    let index = avx::last_byte_without_separator(s, sep, eol);
-    match index {
-        8 => Some(avx::parse_8_chars_simd(s)),
-        9 => Some(avx::parse_9_chars_simd(s)),
-        7 => Some(avx::parse_7_chars_simd(s)),
-        6 => Some(avx::parse_6_chars_simd(s)),
-        5 => Some(avx::parse_5_chars_simd(s)),
-        4 => Some(avx::parse_4_chars_simd(s)),
-        1..=3 => Some(fallback::parse_byte_iterator_limited(s, index)),
-        // Use the default implementation since we cannot guarantee overflow
-        // check in the SIMD implementations
-        _ => fallback::parse_integer_separator(s, sep, eol),
-    }
-}
-
-/// Parses and `u32` from the input string when possible using AVX2 intrinsics.
-///
-/// If the input string is empty or the parsing function encounters an overflow,
-/// then `None` will be returned.
-#[inline]
-unsafe fn parse_integer_sep_checked_sse41(s: &str, sep: u8, eol: u8) -> Option<u32> {
-    // Go back to fallback implementation if the string doesn't have the correct
-    // size
-    if s.len() < sse41::VECTOR_SIZE {
-        return fallback::parse_integer_separator(s, sep, eol);
-    }
-    let index = sse41::last_byte_without_separator(s, sep, eol);
-    match index {
-        8 => Some(sse41::parse_8_chars_simd(s)),
-        9 => Some(sse41::parse_9_chars_simd(s)),
-        7 => Some(sse41::parse_7_chars_simd(s)),
-        6 => Some(sse41::parse_6_chars_simd(s)),
-        5 => Some(sse41::parse_5_chars_simd(s)),
-        4 => Some(sse41::parse_4_chars_simd(s)),
-        1..=3 => Some(fallback::parse_byte_iterator_limited(s, index)),
-        // Use the default implementation since we cannot guarantee overflow
-        // check in the SIMD implementations
-        _ => fallback::parse_integer_separator(s, sep, eol),
-    }
 }
 
 /// Parses an `u32` from the input string up to the first occurrence of
@@ -397,6 +307,118 @@ unsafe fn parse_integer_dispatcher(s: &str) -> u32 {
 #[inline]
 pub unsafe fn parse_integer_unchecked(s: &str) -> u32 {
     PARSE_INTEGER_UN(s)
+}
+
+
+// -----------------------------------------------------------------------------
+//          Internal implementations of architecture specific functions.
+// -----------------------------------------------------------------------------
+
+/// Parses and `u32` from the input string when possibile using AVX2 instrinics.
+///
+/// If the input string is empty or the parsing function encounters an overflow,
+/// then `None` will be returned.
+#[inline]
+unsafe fn parse_integer_checked_avx2(s: &str) -> Option<u32> {
+    // Go back to fallback implementation if the string doesn't have the correct
+    // size
+    if s.len() < avx::VECTOR_SIZE {
+        return fallback::parse_integer(s);
+    }
+
+    let index = avx::last_digit_byte(s);
+    match index {
+        8 => Some(avx::parse_8_chars_simd(s)),
+        9 => Some(avx::parse_9_chars_simd(s)),
+        7 => Some(avx::parse_7_chars_simd(s)),
+        6 => Some(avx::parse_6_chars_simd(s)),
+        5 => Some(avx::parse_5_chars_simd(s)),
+        4 => Some(avx::parse_4_chars_simd(s)),
+        1..=3 => Some(fallback::parse_byte_iterator_limited(s, index)),
+        // Use the default implementation since we cannot guarantee overflow
+        // check in the SIMD implementations. This also holds for padded
+        // strings.
+        _ => fallback::parse_integer(s),
+    }
+}
+
+/// Parses and `u32` from the input string when possible using AVX2 intrinsics.
+///
+/// If the input string is empty or the parsing function encounters an overflow,
+/// then `None` will be returned.
+#[inline]
+unsafe fn parse_integer_checked_sse41(s: &str) -> Option<u32> {
+    // Go back to fallback implementation if the string doesn't have the correct
+    // size
+    if s.len() < sse41::VECTOR_SIZE {
+        return fallback::parse_integer(s);
+    }
+    let index = sse41::last_digit_byte(s);
+    match index {
+        8 => Some(sse41::parse_8_chars_simd(s)),
+        9 => Some(sse41::parse_9_chars_simd(s)),
+        7 => Some(sse41::parse_7_chars_simd(s)),
+        6 => Some(sse41::parse_6_chars_simd(s)),
+        5 => Some(sse41::parse_5_chars_simd(s)),
+        4 => Some(sse41::parse_4_chars_simd(s)),
+        1..=3 => Some(fallback::parse_byte_iterator_limited(s, index)),
+        // Use the default implementation since we cannot guarantee overflow
+        // check in the SIMD implementations. This also holds for padded
+        // strings.
+        _ => fallback::parse_integer(s),
+    }
+}
+
+/// Parses and `u32` from the input string when possibile using AVX2 instrinics.
+///
+/// If the input string is empty or the parsing function encounters an overflow,
+/// then `None` will be returned.
+#[inline]
+unsafe fn parse_integer_sep_checked_avx2(s: &str, sep: u8, eol: u8) -> Option<u32> {
+    // Go back to fallback implementation if the string doesn't have the correct
+    // size
+    if s.len() < avx::VECTOR_SIZE {
+        return fallback::parse_integer_separator(s, sep, eol);
+    }
+    let index = avx::last_byte_without_separator(s, sep, eol);
+    match index {
+        8 => Some(avx::parse_8_chars_simd(s)),
+        9 => Some(avx::parse_9_chars_simd(s)),
+        7 => Some(avx::parse_7_chars_simd(s)),
+        6 => Some(avx::parse_6_chars_simd(s)),
+        5 => Some(avx::parse_5_chars_simd(s)),
+        4 => Some(avx::parse_4_chars_simd(s)),
+        1..=3 => Some(fallback::parse_byte_iterator_limited(s, index)),
+        // Use the default implementation since we cannot guarantee overflow
+        // check in the SIMD implementations
+        _ => fallback::parse_integer_separator(s, sep, eol),
+    }
+}
+
+/// Parses and `u32` from the input string when possible using AVX2 intrinsics.
+///
+/// If the input string is empty or the parsing function encounters an overflow,
+/// then `None` will be returned.
+#[inline]
+unsafe fn parse_integer_sep_checked_sse41(s: &str, sep: u8, eol: u8) -> Option<u32> {
+    // Go back to fallback implementation if the string doesn't have the correct
+    // size
+    if s.len() < sse41::VECTOR_SIZE {
+        return fallback::parse_integer_separator(s, sep, eol);
+    }
+    let index = sse41::last_byte_without_separator(s, sep, eol);
+    match index {
+        8 => Some(sse41::parse_8_chars_simd(s)),
+        9 => Some(sse41::parse_9_chars_simd(s)),
+        7 => Some(sse41::parse_7_chars_simd(s)),
+        6 => Some(sse41::parse_6_chars_simd(s)),
+        5 => Some(sse41::parse_5_chars_simd(s)),
+        4 => Some(sse41::parse_4_chars_simd(s)),
+        1..=3 => Some(fallback::parse_byte_iterator_limited(s, index)),
+        // Use the default implementation since we cannot guarantee overflow
+        // check in the SIMD implementations
+        _ => fallback::parse_integer_separator(s, sep, eol),
+    }
 }
 
 /// Parses an u32 from the input string using AVX2 intrinsics whenever is
@@ -507,9 +529,14 @@ unsafe fn parse_integer_separator_sse41(s: &str, separator: u8, eol: u8) -> u32 
     }
 }
 
-// ====================
-// benchmark only function
-// ====================
+
+// -----------------------------------------------------------------------------
+//                             Benchmark only function
+//
+// This functions are useful only to benchmark the performance of the different
+// algorithms. Make sure to pass `--features "benchmark"` during the compilation
+// step to enable the following definitions.
+// -----------------------------------------------------------------------------
 
 /// SSE4.2 implementation for `parse_integer_separator` meant to be used only
 /// during benchamark
